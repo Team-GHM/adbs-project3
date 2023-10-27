@@ -180,7 +180,8 @@ template<class Key, class Value> class betree {
 private:
 
 	// Init class for sliding window statistic tracker on the Tree
-	window_stat_tracker stat_tracker = window_stat_tracker(1);
+	// with default value for W value (size of sliding window)
+	window_stat_tracker stat_tracker = window_stat_tracker();
 
   class node;
   // We let a swap_space handle all the I/O.
