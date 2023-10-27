@@ -23,5 +23,7 @@ swap_space.o: swap_space.cpp swap_space.hpp backing_store.hpp
 
 backing_store.o: backing_store.hpp backing_store.cpp
 
+window_stat_tracker.o: window_stat_tracker.hpp window_stat_tracker.cpp
+
 clean:
 	$(RM) *.o test test_logging_restore generate
