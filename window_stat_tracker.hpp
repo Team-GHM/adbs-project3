@@ -81,11 +81,14 @@ public:
 		return write_count;
 	}
 
-	// Gets the write count and subtracts that from W 
-	// which is the read count
+	// Loops over the window and counts the 0s (the read events)
 	int get_read_count() {
-		int write_count = get_write_count();
-		int read_count = W - write_count;
+		int read_count = 0;
+		for (int val : window) {
+			if (val == 0) {
+				read_count += 1;
+			}
+		}
 		return read_count;
 	}
 
