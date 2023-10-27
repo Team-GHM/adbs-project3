@@ -56,6 +56,7 @@
 #include "swap_space.hpp"
 #include "backing_store.hpp"
 
+#include "window_stat_tracker.hpp"
 ////////////////// Upserts
 
 // Internally, we store data indexed by both the user-specified key
@@ -177,6 +178,9 @@ bool operator==(const Message<Value> &a, const Message<Value> &b) {
 
 template<class Key, class Value> class betree {
 private:
+
+	// Init class for sliding window statistic tracker on the Tree
+	window_stat_tracker stat_tracker = window_stat_tracker(1);
 
   class node;
   // We let a swap_space handle all the I/O.

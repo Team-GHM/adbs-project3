@@ -30,11 +30,19 @@ private:
 	
 public:
 	// Constructor
-	window_stat_tracker(int w = DEFAULT_W);
+	window_stat_tracker(int w = DEFAULT_W) : W(w)
+       	{
+		std::cout << "initing window ..." << std::endl;
+	}
 	
+
 	// methods to update the window with recent operations
-	void add_read();
-	void add_write();
+	void add_read() {
+		std::cout << "adding read ..." << std::endl;
+	}
+	void add_write() {
+		std::cout << "adding write ..." << std::endl;
+	}
 };
 
 #endif
