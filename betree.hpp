@@ -56,6 +56,7 @@
 #include "swap_space.hpp"
 #include "backing_store.hpp"
 
+#include "window_stat_tracker.hpp"
 ////////////////// Upserts
 
 // Internally, we store data indexed by both the user-specified key
@@ -192,6 +193,12 @@ template <class Key, class Value>
 class betree
 {
 private:
+
+	// Init class for sliding window statistic tracker on the Tree
+	// with default value for W value (size of sliding window)
+	window_stat_tracker stat_tracker = window_stat_tracker();
+
+
   class node;
   // We let a swap_space handle all the I/O.
   typedef typename swap_space::pointer<node> node_pointer;
@@ -755,6 +762,8 @@ public:
   // occurs.
   void upsert(int opcode, Key k, Value v)
   {
+    stat_tracker.add_write();
+
     message_map tmp;
     tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
     pivot_map new_nodes = root->flush(*this, tmp);
@@ -782,6 +791,7 @@ public:
 
   Value query(Key k)
   {
+    stat_tracker.add_read();
     Value v = root->query(*this, k);
     return v;
   }
