@@ -12,7 +12,6 @@
 #include <vector>
 #include <iostream>
 #include <string>
-#include <cmath>
 
 // TODO: change and tune
 #define DEFAULT_W (100)
@@ -43,32 +42,23 @@ public:
 	// Constructor
 	window_stat_tracker(int w = DEFAULT_W) : W(w)
        	{
-		std::cout << "initing window ..." << std::endl;
 	}
 	
-
 	// methods to update the window with recent operations
 	void add_read() {
-		std::cout << "adding read ..." << std::endl;
-
 		// If window is full, remove oldest value
 		if (windowFull()) {
 			eraseOldest();
 		}
-
 		window.push_back(0); // add a read event (0)
-		print_read_write_count();
 	}
 
 	void add_write() {
-		std::cout << "adding write ..." << std::endl;
 		 // If window is full, remove oldest value
                 if (windowFull()) {
                         eraseOldest();
                 }
-
 		window.push_back(1); // add a write event (1)
-		print_read_write_count();
 	}
 
 	// Sums the values in the window (0s (reads) and 1s (writes))
@@ -92,13 +82,12 @@ public:
 		return read_count;
 	}
 
+	// prints the read and write counts and the size of the window
 	void print_read_write_count() {
 		int writes = get_write_count();
 		int reads = get_read_count();
-
 		std::cout << "Write count is: " << std::to_string(writes) << std::endl;
 		std::cout << "Read count is: " << std::to_string(reads) << std::endl;
-		
 		int total = writes + reads;
 		std::cout << "Total in window: " << std::to_string(total) << std::endl;
 	}
