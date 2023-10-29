@@ -16,6 +16,11 @@
 // TODO: change and tune
 #define DEFAULT_W (100)
 
+// Epsilon values for write and ready-heavy workloads
+#define WRITE_HEAVY_E (0.4) // smaller epsilon = larger message buffer
+#define READ_HEAVY_E (0.6) // bigger epsilon = shallower tree
+
+
 class window_stat_tracker {
 
 private:
@@ -44,6 +49,24 @@ public:
        	{
 	}
 	
+	
+	// Method to get an epsilon value based off of
+	// the sliding window of statistics
+	float get_epsilon() {
+		int write_count = get_write_count();
+
+		// the percentage of writes in the window
+		float write_percentage = write_count/W;
+
+		float heavy_E_diff = READ_HEAVY_E - WRITE_HEAVY_E;
+
+		// Normalizes the percentage from [0,1] to [WRITE_HEAVY_E,READ_HEAVY_E]
+		float epsilon_in_range = READ_HEAVY_E - (heavy_E_diff * write_percentage);
+		
+		return epsilon_in_range;
+	}
+
+
 	// methods to update the window with recent operations
 	void add_read() {
 		// If window is full, remove oldest value
