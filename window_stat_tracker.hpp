@@ -28,11 +28,11 @@ private:
 	std::vector<int> window;
 	
 	// Eraseses the oldest value in the sliding window
-	void eraseOldest() {
+	void erase_oldest() {
 		window.erase(window.begin());
 	}
 
-	bool windowFull() {
+	bool window_full() {
 		int size = static_cast<int>(window.size());
 		return (size >= W);
 	}
@@ -47,16 +47,16 @@ public:
 	// methods to update the window with recent operations
 	void add_read() {
 		// If window is full, remove oldest value
-		if (windowFull()) {
-			eraseOldest();
+		if (window_full()) {
+			erase_oldest();
 		}
 		window.push_back(0); // add a read event (0)
 	}
 
 	void add_write() {
 		 // If window is full, remove oldest value
-                if (windowFull()) {
-                        eraseOldest();
+                if (window_full()) {
+                        erase_oldest();
                 }
 		window.push_back(1); // add a write event (1)
 	}
