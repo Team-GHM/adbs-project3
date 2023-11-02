@@ -194,10 +194,11 @@ class betree
 {
 private:
 
-	// Init class for sliding window statistic tracker on the Tree
-	// with default value for W value (size of sliding window)
-	window_stat_tracker stat_tracker = window_stat_tracker();
-
+  // Init class for sliding window statistic tracker on the Tree
+  // with default value for W value (size of sliding window)
+  window_stat_tracker stat_tracker = window_stat_tracker();
+  int operation_count = 0;
+  int ops_before_epsilon_update = 100; // TODO: tune
 
   class node;
   // We let a swap_space handle all the I/O.
@@ -763,6 +764,7 @@ public:
   void upsert(int opcode, Key k, Value v)
   {
     stat_tracker.add_write();
+    operation_count += 1;
 
     message_map tmp;
     tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
@@ -771,6 +773,14 @@ public:
     {
       root = ss->allocate(new node);
       root->pivots = new_nodes;
+    }
+
+        // Get and set new Epsilon periodically
+    if (operation_count == ops_before_epsilon_update) {
+        float new_epsilon = stat_tracker.get_epsilon();
+        std::cout << "New epsilon is: " << std::to_string(new_epsilon) << std:endl;
+        // TODO: call set_epsilon()
+	operation_count = 0;
     }
   }
 
@@ -792,7 +802,19 @@ public:
   Value query(Key k)
   {
     stat_tracker.add_read();
+    operation_count += 1;
+
     Value v = root->query(*this, k);
+
+    // Get and set new Epsilon periodically
+    if (operation_count == ops_before_epsilon_update) {
+
+	float new_epsilon = stat_tracker.get_epsilon();
+	std::cout << "New epsilon is: " << std::to_string(new_epsilon) << std:endl; 
+	// TODO: call set_epsilon()
+	operation_count = 0;
+    }
+
     return v;
   }
 
