@@ -778,7 +778,7 @@ public:
         // Get and set new Epsilon periodically
     if (operation_count == ops_before_epsilon_update) {
         float new_epsilon = stat_tracker.get_epsilon();
-        std::cout << "New epsilon is: " << std::to_string(new_epsilon) << std:endl;
+        std::cout << "New epsilon is: " << std::to_string(new_epsilon) << std::endl;
         // TODO: call set_epsilon()
 	operation_count = 0;
     }
@@ -810,7 +810,7 @@ public:
     if (operation_count == ops_before_epsilon_update) {
 
 	float new_epsilon = stat_tracker.get_epsilon();
-	std::cout << "New epsilon is: " << std::to_string(new_epsilon) << std:endl; 
+	std::cout << "New epsilon is: " << std::to_string(new_epsilon) << std::endl; 
 	// TODO: call set_epsilon()
 	operation_count = 0;
     }
