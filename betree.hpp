@@ -821,6 +821,13 @@ public:
     stat_tracker.add_write();
     operation_count += 1;
 
+    // periodically update epsilon
+    if (operation_count == ops_before_epsilon_update) {
+        float new_epsilon = stat_tracker.get_epsilon();
+        set_epsilon(new_epsilon);
+        operation_count = 0;
+    }
+
     message_map tmp;
     tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
     pivot_map new_nodes = root->flush(*this, tmp);
@@ -830,12 +837,6 @@ public:
       root->pivots = new_nodes;
     }
 
-    // periodically update epsilon
-    if (operation_count == ops_before_epsilon_update) {
-        float new_epsilon = stat_tracker.get_epsilon();
-	set_epsilon(new_epsilon);
-	operation_count = 0;
-    }
   }
 
   void insert(Key k, Value v)
