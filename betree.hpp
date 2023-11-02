@@ -51,6 +51,7 @@
 // to an on-disk node requires reading it in and writing it out.
 
 #include <map>
+#include <math.h>
 #include <vector>
 #include <cassert>
 #include "swap_space.hpp"
@@ -368,12 +369,16 @@ private:
     //           destined for each child in pivots);
     pivot_map split(betree &bet)
     {
-      assert(pivots.size() + elements.size() >= bet.max_node_size);
+      // UPDATED ASSERT doesn't check against max size of node. 
+      // This checks that at least the pivots or messages are outside of their bounds.
+      assert((pivots.size() >= bet.max_pivots) || (elements.size() >= bet.max_messages));
       // This size split does a good job of causing the resulting
       // nodes to have size between 0.4 * MAX_NODE_SIZE and 0.6 * MAX_NODE_SIZE.
-      // TODO Get a more accurate way of finding number of new leaves based on epsilon
-      int num_new_leaves =
+      // TODO If this results in too many pivots for this node, the last check in flush(...)
+      // should split again to reduce the number of pivots to the correct size. Need to validate.
+      int num_new_leaves = 
           (pivots.size() + elements.size()) / (10 * bet.max_node_size / 24);
+      // Make sure nothing here is left after adding to leaves
       int things_per_new_leaf =
           (pivots.size() + elements.size() + num_new_leaves - 1) / num_new_leaves;
 
@@ -381,23 +386,37 @@ private:
       auto pivot_idx = pivots.begin();
       auto elt_idx = elements.begin();
       int things_moved = 0;
+      // Iterate through number of new leaves to move items from this node in
+      // Each leaf is a new node allocated and added to result pivot_map
       for (int i = 0; i < num_new_leaves; i++)
       {
         if (pivot_idx == pivots.end() && elt_idx == elements.end())
+          // Moved all pivots and elements to new leaves
           break;
+        // Allocate a new node
         node_pointer new_node = bet.ss->allocate(new node);
+        // If there are still pivots to move...
+        // result[pivot_idx->first] = child_info(new_node, 0 + 0)
+        // Else if looping through elements...
+        // result[elt_idx->first.key] = child_info(new_node, 0 + 0)
         result[pivot_idx != pivots.end() ? pivot_idx->first : elt_idx->first.key] = child_info(new_node,
                                                                                                new_node->elements.size() +
                                                                                                    new_node->pivots.size());
+        // While there are still things to move to this leaf
         while (things_moved < (i + 1) * things_per_new_leaf &&
                (pivot_idx != pivots.end() || elt_idx != elements.end()))
         {
+          // Move pivots
           if (pivot_idx != pivots.end())
           {
+            // Add pivot to new node
             new_node->pivots[pivot_idx->first] = pivot_idx->second;
+            // Increment the pivot idx so we know when to stop adding elements
+            // and don't add elements from the next pivot
             ++pivot_idx;
             things_moved++;
             auto elt_end = get_element_begin(pivot_idx);
+            // Get all elements for this pivot and move them to the node
             while (elt_idx != elt_end)
             {
               new_node->elements[elt_idx->first] = elt_idx->second;
@@ -407,7 +426,7 @@ private:
           }
           else
           {
-            // Must be a leaf
+            // Must be a leaf. Move elements up to things_per_new_leaf into the new node. 
             assert(pivots.size() == 0);
             new_node->elements[elt_idx->first] = elt_idx->second;
             ++elt_idx;
@@ -480,6 +499,9 @@ private:
     // Otherwise return an empty map.
     pivot_map flush(betree &bet, message_map &elts)
     {
+      // REMEMBER
+      // If too many messages, we need to flush.
+      // If too many pivots, we need to split.
       debug(std::cout << "Flushing " << this << std::endl);
       pivot_map result;
 
@@ -489,11 +511,13 @@ private:
         return result;
       }
 
+      // Leaves care about messages. Split if this leaf has too many.
       if (is_leaf())
       {
         for (auto it = elts.begin(); it != elts.end(); ++it)
           apply(it->first, it->second, bet.default_value);
-        if (elements.size() + pivots.size() >= bet.max_node_size)
+        // Leaves don't contain pivots, so only need to check max message size.
+        if (elements.size() >= bet.max_messages)
           result = split(bet);
         return result;
       }
@@ -524,12 +548,15 @@ private:
           auto elt_end = get_element_begin(next_pivot_idx);
           assert(elt_start == elt_end);
         }
+        // Flush the messages from further down the tree. 
         pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts);
+        // If more leaves were created from the flush, update our pivots.
         if (!new_children.empty())
         {
           pivots.erase(first_pivot_idx);
           pivots.insert(new_children.begin(), new_children.end());
         }
+        // Otherwise, make sure the size of the node we flushed to is up to date.
         else
         {
           first_pivot_idx->second.child_size =
@@ -539,7 +566,7 @@ private:
       }
       else
       {
-
+        // Apply each message in our elements to ourself (meaning this node)
         for (auto it = elts.begin(); it != elts.end(); ++it)
           apply(it->first, it->second, bet.default_value);
 
@@ -563,10 +590,15 @@ private:
               max_size = dist;
             }
           }
-          if (!(max_size > bet.min_flush_size ||
-                (max_size > bet.min_flush_size / 2 &&
-                 child_pivot->second.child.is_in_memory())))
+          // TODO Understand. Not sure how this means we have too many pivots. This might be fine, but we should investigate.
+          // If one of these conditions is false, we have too many pivots
+          // 1. the max node size is greater than the min flush size
+          // 2. the max node size is not bigger than half the min flush size and the child is in memory
+          if (!( max_size > bet.min_flush_size ||
+                (max_size > bet.min_flush_size / 2 && child_pivot->second.child.is_in_memory()) )) {
             break; // We need to split because we have too many pivots
+          }
+          
           auto elt_child_it = get_element_begin(child_pivot);
           auto elt_next_it = get_element_begin(next_pivot);
           message_map child_elts(elt_child_it, elt_next_it);
@@ -574,11 +606,13 @@ private:
           elements.erase(elt_child_it, elt_next_it);
           if (!new_children.empty())
           {
+            // Update the pivots.
             pivots.erase(child_pivot);
             pivots.insert(new_children.begin(), new_children.end());
           }
           else
           {
+            // Otherwise if there are no new nodes, make sure the node size is up to date.
             first_pivot_idx->second.child_size =
                 child_pivot->second.child->pivots.size() +
                 child_pivot->second.child->elements.size();
@@ -586,7 +620,8 @@ private:
         }
 
         // We have too many pivots to efficiently flush stuff down, so split
-        if (elements.size() + pivots.size() > bet.max_node_size)
+        // This is checked on every flush that isn't on a leaf node 
+        if (pivots.size() > bet.max_pivots)
         {
           result = split(bet);
         }
@@ -743,6 +778,8 @@ private:
   uint64_t next_timestamp = 1; // Nothing has a timestamp of 0
   Value default_value;
   float epsilon;
+  uint64_t max_messages;
+  uint64_t max_pivots;
 
 public:
   betree(swap_space *sspace,
@@ -755,7 +792,25 @@ public:
                                      min_node_size(minnodesize),
                                      epsilon(epsilonvalue)
   {
+    max_pivots = get_number_of_pivots_per_node(); 
+    max_messages = max_node_size - max_pivots; 
     root = ss->allocate(new node);
+  }
+
+  uint64_t get_number_of_pivots_per_node() {
+    return (uint64_t)pow(max_node_size, epsilon);
+  }
+  
+  // Get the configured epsilon value
+  float get_epsilon() const {
+    return epsilon;
+  }
+
+  // Get the configured epsilon value
+  void set_epsilon(float e) {
+    epsilon = e;
+    max_pivots = get_number_of_pivots_per_node(); 
+    max_messages = max_node_size - max_pivots; 
   }
 
   // Insert the specified message and handle a split of the root if it
