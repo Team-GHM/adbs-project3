@@ -443,6 +443,9 @@ private:
       return result;
     }
 
+
+
+    // Merge Method
     node_pointer merge(betree &bet,
                        typename pivot_map::iterator begin,
                        typename pivot_map::iterator end)
@@ -470,39 +473,47 @@ private:
       // start on the root 
       bet.root->merge_node_recursive(bet);
 
-      // after the recursive merging, the root node might also need to be merged
-      //if (bet.root->pivots.size() > bet.max_pivots) {
-      // bet.root->merge_node_recursive(bet);
-      //}
     }
 
 
 
 
     // Recursive merge method
-    
     void merge_node_recursive(betree &bet) {
-	if (is_leaf()) {
+	
+      if (is_leaf()) {
 	    //std::cout << "leaf node so returning" << std::endl;
 	    return;
-        }
+	}
+
+      // recursively merge the children of this node
+      for (auto &pivot : pivots) {
+              //std::cout << "recursively calling merg_node_recursive()" << std::endl;
+              pivot.second.child->merge_node_recursive(bet);
+      }
 
       // for all pivots in this node
       for (auto beginit = pivots.begin(); beginit != pivots.end(); ++beginit) {
     	
 	// calculate the total size of child nodes up to the max_pivots	      
 	uint64_t total_pivots = 0;
-        auto endit = beginit; // create 2nd iterator
+        uint64_t total_messages = 0;
+	auto endit = beginit; // create 2nd iterator
 
 	//std::cout << "summing pivot sizes" << std::endl;
 	// Iterate through the pivots 
         while (endit != pivots.end()) {
 	  // if merging the next pivot results in more than max_pivots
-	  if (total_pivots + endit->second.child->pivots.size() > bet.max_pivots)
+	  if (total_pivots + endit->second.child->pivots.size() > bet.max_pivots)// ||
+	      //total_messages + endit->second.child->elements.size() > bet.max_messages)
+	  {	  
+		  //std::cout << "total_messages: " << std::to_string(total_messages) << std::endl;
 		  break;
-
+	  }
 	  total_pivots += endit->second.child->pivots.size();
-          ++endit;// advance to next pivot
+	  total_messages += beginit->second.child->elements.size();
+          //std::cout << "total_messages: " << std::to_string(total_messages) << std::endl;
+	  ++endit;// advance to next pivot
         }
 	//std::cout << "total_pivots: " << std::to_string(total_pivots) << std::endl;
 
@@ -522,12 +533,6 @@ private:
           // continue with the next pivot after the merged group
 	  beginit = pivots.lower_bound(key);
         }
-      }
-
-      // recursively merge the children of this node
-      for (auto &pivot : pivots) {
-      	      //std::cout << "recursively calling merg_node_recursive()" << std::endl;	
-	      pivot.second.child->merge_node_recursive(bet);
       }
     }
 
@@ -605,6 +610,19 @@ private:
 	}
 
 	return count;
+    }
+
+    void message_count_recursive(betree &bet){
+	if (is_leaf()){
+		std::cout << "leaf messages: " << std::to_string(elements.size()) << std::endl;
+		return;
+	}
+	else {
+		std::cout << "messages: " << std::to_string(elements.size()) << std::endl;
+		for (auto &pivot : pivots) {
+			pivot.second.child->message_count_recursive(bet);
+		}
+	}
     }
 
 
@@ -689,7 +707,8 @@ private:
 
         // Now flush to out-of-core or clean children as necessary
         while (elements.size() + pivots.size() >= bet.max_node_size)
-        {
+       	//while (elements.size() + pivots.size() >= bet.max_node_size || elements.size() >= bet.max_messages)
+	{
           // Find the child with the largest set of messages in our buffer
           unsigned int max_size = 0;
           auto child_pivot = pivots.begin();
@@ -742,6 +761,11 @@ private:
         {
           result = split(bet);
         }
+	/*if (elements.size() > bet.max_messages)
+	{
+	  //std::cout << "elements.size(): " << std::to_string(elements.size()) << " and max_messages: " << std::to_string(bet.max_messages) << "so futher splitting on flush" << std::endl;
+	  result = split(bet);	
+	}*/
       }
 
       // merge_small_children(bet);
@@ -945,19 +969,24 @@ public:
     max_messages = max_node_size - max_pivots;
 
     if (epsilon > prev_epsilon)
-    {
+    {       
+	    //root->message_count_recursive(*this);
+
 	    int height = get_tree_height();
 	    std::cout << "tree height before merge is: " << std::to_string(height) << std::endl;
 	    int nodeCount = get_node_count();
 	    std::cout << "node Count before merge is: " << std::to_string(nodeCount) << std::endl;
 
 	    std::cout << "Calling recursive merge ..." << std::endl;
-    	    root->merge_tree(*this);
+    	    //root->merge_tree(*this);
+
+
 	    height = get_tree_height();
 	    std::cout << "tree height after merge is: " << std::to_string(height) << std::endl;
     	    nodeCount = get_node_count();
 	    std::cout << "node Count after merge is: " << std::to_string(nodeCount) << std::endl;
     		
+    	    //root->message_count_recursive(*this);
     } 
   }
 
