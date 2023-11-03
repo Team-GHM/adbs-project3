@@ -458,59 +458,73 @@ private:
 
     // Wrapper method for recursively merging the tree to shorten it 
     void merge_tree(betree &bet) {
+      std::cout << "calling recursive merge in merge_tree..."  << std::endl;
       
-      // Start by merging the root node
-      merge_node_recursive(bet, root);
+      std::cout << "max_pivots is: " << std::to_string(bet.max_pivots) << std::endl;
+      // start on the root 
+      //merge_node_recursive(bet, bet.root);
+	
+      bet.root->merge_node_recursive(bet);
 
-      // After the recursive merging, the root node might also need to be merged
-      if (root->pivots.size() > max_pivots) {
-        merge_node_recursive(bet, root);
+      // after the recursive merging, the root node might also need to be merged
+      if (bet.root->pivots.size() > bet.max_pivots) {
+       // merge_node_recursive(bet, bet.root);
+       bet.root->merge_node_recursive(bet);
       }
     }
 
+
+
+
     // Recursive merge method
-    void merge_node_recursive(betree &bet, node_pointer node) {
-      if (node->is_leaf()) {
-        return;
+    
+    void merge_node_recursive(betree &bet) {
+	if (is_leaf()) {
+	    std::cout << "leaf node so returning" << std::endl;
+	return;
       }
 
       // for all pivots in this node
-      for (auto beginit = node->pivots.begin(); beginit != node->pivots.end(); ++beginit) {
-        // calculate the total size of child nodes up to the max_pivots
-        
-	      
+      for (auto beginit = pivots.begin(); beginit != pivots.end(); ++beginit) {
+    	
+	// calculate the total size of child nodes up to the max_pivots	      
 	uint64_t total_pivots = 0;
         auto endit = beginit; // create 2nd iterator
 
+	std::cout << "summing pivot sizes" << std::endl;
 	// Iterate through the pivots 
-        while (endit != node->pivots.end()) {
-        
-	  if (total_pivots + endit->second.child->pivots.size() > max_pivots)
+        while (endit != pivots.end()) {
+	  // if merging the next pivot results in more than max_pivots
+	  if (total_pivots + endit->second.child->pivots.size() > bet.max_pivots)
 		  break;
 
 	  total_pivots += endit->second.child->pivots.size();
           ++endit;// advance to next pivot
         }
+	std::cout << "total_pivots: " << std::to_string(total_pivots) << std::endl;
 
 	// if children arent the same
-        if (endit != beginit) {
+        if (endit != beginit && total_pivots != 0) {
 
+	  std::cout << "calling merge()" << std::endl;
           // merge the child nodes from 'beginit' to 'endit'
           node_pointer merged_node = merge(bet, beginit, endit);
 
           // update the pivots of the current node
           Key key = beginit->first;
-          node->pivots.erase(beginit, endit);
-          node->pivots[key] = child_info(merged_node, merged_node->pivots.size() + merged_node->elements.size());
+      	  
+	  pivots.erase(beginit, endit);
+          pivots[key] = child_info(merged_node, merged_node->pivots.size() + merged_node->elements.size());
 
           // continue with the next pivot after the merged group
-          beginit = node->pivots.lower_bound(key);
+	  beginit = pivots.lower_bound(key);
         }
       }
 
       // recursively merge the children of this node
-      for (const auto &pivot_info : node->pivots) {
-        merge_node_recursive(bet, pivot_info.second.child);
+      for (auto &pivot : pivots) {
+      	      std::cout << "recursively calling merg_node_recursive()" << std::endl;	
+	      pivot.second.child->merge_node_recursive(bet);
       }
     }
 
@@ -861,7 +875,7 @@ public:
          uint64_t maxnodesize = DEFAULT_MAX_NODE_SIZE,
          uint64_t minnodesize = DEFAULT_MAX_NODE_SIZE / 4,
          uint64_t minflushsize = DEFAULT_MIN_FLUSH_SIZE,
-         float epsilonvalue = 0.4) : ss(sspace),
+         float epsilonvalue = 0.4)  : ss(sspace),
                                      min_flush_size(minflushsize),
                                      max_node_size(maxnodesize),
                                      min_node_size(minnodesize),
@@ -883,9 +897,16 @@ public:
 
   // Get the configured epsilon value
   void set_epsilon(float e) {
+    float prev_epsilon = epsilon;
     epsilon = e;
     max_pivots = get_number_of_pivots_per_node(); 
-    max_messages = max_node_size - max_pivots; 
+    max_messages = max_node_size - max_pivots;
+
+    if (epsilon > prev_epsilon)
+    {
+	    std::cout << "Calling recursive merge ..." << std::endl;
+    	    root->merge_tree(*this);
+    } 
   }
 
   // Insert the specified message and handle a split of the root if it
