@@ -456,6 +456,66 @@ private:
       return new_node;
     }
 
+    // Wrapper method for recursively merging the tree to shorten it 
+    void merge_tree(betree &bet) {
+      
+      // Start by merging the root node
+      merge_node_recursive(bet, root);
+
+      // After the recursive merging, the root node might also need to be merged
+      if (root->pivots.size() > max_pivots) {
+        merge_node_recursive(bet, root);
+      }
+    }
+
+    // Recursive merge method
+    void merge_node_recursive(betree &bet, node_pointer node) {
+      if (node->is_leaf()) {
+        return;
+      }
+
+      // for all pivots in this node
+      for (auto beginit = node->pivots.begin(); beginit != node->pivots.end(); ++beginit) {
+        // calculate the total size of child nodes up to the max_pivots
+        
+	      
+	uint64_t total_pivots = 0;
+        auto endit = beginit; // create 2nd iterator
+
+	// Iterate through the pivots 
+        while (endit != node->pivots.end()) {
+        
+	  if (total_pivots + endit->second.child->pivots.size() > max_pivots)
+		  break;
+
+	  total_pivots += endit->second.child->pivots.size();
+          ++endit;// advance to next pivot
+        }
+
+	// if children arent the same
+        if (endit != beginit) {
+
+          // merge the child nodes from 'beginit' to 'endit'
+          node_pointer merged_node = merge(bet, beginit, endit);
+
+          // update the pivots of the current node
+          Key key = beginit->first;
+          node->pivots.erase(beginit, endit);
+          node->pivots[key] = child_info(merged_node, merged_node->pivots.size() + merged_node->elements.size());
+
+          // continue with the next pivot after the merged group
+          beginit = node->pivots.lower_bound(key);
+        }
+      }
+
+      // recursively merge the children of this node
+      for (const auto &pivot_info : node->pivots) {
+        merge_node_recursive(bet, pivot_info.second.child);
+      }
+    }
+
+
+
     void merge_small_children(betree &bet)
     {
       if (is_leaf())
@@ -464,61 +524,43 @@ private:
       // iterator over the pivots in the current node
       for (auto beginit = pivots.begin(); beginit != pivots.end(); ++beginit)
       {
-	// Accumulate the size of child
+	// Accumulate the size of child nodes
         uint64_t total_size = 0;
         auto endit = beginit;
         while (endit != pivots.end())
-        {
+	{
+	  // when 60% of max mode size is accumulated, stop 
           if (total_size + beginit->second.child_size > 6 * bet.max_node_size / 10)
-            break;
-          total_size += beginit->second.child_size;
-          ++endit;
+          	break;
+          	
+	  total_size += beginit->second.child_size;
+          ++endit; // advance end iterator position
         }
         
-	
+	// if end child isn't start child
 	if (endit != beginit)
         {
+	  // merge children
           node_pointer merged_node = merge(bet, beginit, endit);
-          for (auto tmp = beginit; tmp != endit; ++tmp)
+          
+	  // clear old children because merged
+	  for (auto tmp = beginit; tmp != endit; ++tmp)
           {
             tmp->second.child->elements.clear();
             tmp->second.child->pivots.clear();
           }
-          Key key = beginit->first;
-          pivots.erase(beginit, endit);
+
+	  // update parent node
+          Key key = beginit->first; // new key for pivot
+          pivots.erase(beginit, endit);// erase merged pivots
+
+	  // Update merged node to be a child of this 
           pivots[key] = child_info(merged_node, merged_node->pivots.size() + merged_node->elements.size());
-          beginit = pivots.lower_bound(key);
+          beginit = pivots.lower_bound(key); // update begin it for next itr
         }
-
-
       }
     }
 
-    // Recursive Method to merge up the B^Tree
-/*    void adaptive_merge(betree &bet) {
-      if (is_leaf())
-        return; // TODO: modify to merge leaves
-
-      for (auto beginit = pivots.begin(); beginit != pivots.end(); ++beginit)
-      {
-        uint64_t total_size = 0;
-        auto endit = beginit;
-        
-	// Iterate through the pivots
-	while (endit != pivots.end())
-        {
-          //if (total_size + beginit->second.child_size > 6 * bet.max_node_size / 10)
-           if (total_size +  beginit->second.child_size > max_pivots))
-	     	break;
-          total_size += beginit->second.child_size;
-          ++endit;
-        }
-
-      }
-
-    }
-
-*/
 
     // Receive a collection of new messages and perform recursive
     // flushes or splits as necessary.  If we split, return a
