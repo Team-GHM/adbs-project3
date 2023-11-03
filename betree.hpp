@@ -462,13 +462,10 @@ private:
       
       std::cout << "max_pivots is: " << std::to_string(bet.max_pivots) << std::endl;
       // start on the root 
-      //merge_node_recursive(bet, bet.root);
-	
       bet.root->merge_node_recursive(bet);
 
       // after the recursive merging, the root node might also need to be merged
       if (bet.root->pivots.size() > bet.max_pivots) {
-       // merge_node_recursive(bet, bet.root);
        bet.root->merge_node_recursive(bet);
       }
     }
