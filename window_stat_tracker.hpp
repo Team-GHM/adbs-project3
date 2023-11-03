@@ -18,7 +18,7 @@
 
 // Epsilon values for write and ready-heavy workloads
 #define WRITE_HEAVY_E (0.4) // smaller epsilon = larger message buffer
-#define READ_HEAVY_E (0.6) // bigger epsilon = shallower tree
+#define READ_HEAVY_E (0.935) // bigger epsilon = shallower tree
 
 
 class window_stat_tracker {
