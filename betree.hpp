@@ -461,8 +461,10 @@ private:
       if (is_leaf())
         return;
 
+      // iterator over the pivots in the current node
       for (auto beginit = pivots.begin(); beginit != pivots.end(); ++beginit)
       {
+	// Accumulate the size of child
         uint64_t total_size = 0;
         auto endit = beginit;
         while (endit != pivots.end())
@@ -472,7 +474,9 @@ private:
           total_size += beginit->second.child_size;
           ++endit;
         }
-        if (endit != beginit)
+        
+	
+	if (endit != beginit)
         {
           node_pointer merged_node = merge(bet, beginit, endit);
           for (auto tmp = beginit; tmp != endit; ++tmp)
@@ -485,8 +489,36 @@ private:
           pivots[key] = child_info(merged_node, merged_node->pivots.size() + merged_node->elements.size());
           beginit = pivots.lower_bound(key);
         }
+
+
       }
     }
+
+    // Recursive Method to merge up the B^Tree
+/*    void adaptive_merge(betree &bet) {
+      if (is_leaf())
+        return; // TODO: modify to merge leaves
+
+      for (auto beginit = pivots.begin(); beginit != pivots.end(); ++beginit)
+      {
+        uint64_t total_size = 0;
+        auto endit = beginit;
+        
+	// Iterate through the pivots
+	while (endit != pivots.end())
+        {
+          //if (total_size + beginit->second.child_size > 6 * bet.max_node_size / 10)
+           if (total_size +  beginit->second.child_size > max_pivots))
+	     	break;
+          total_size += beginit->second.child_size;
+          ++endit;
+        }
+
+      }
+
+    }
+
+*/
 
     // Receive a collection of new messages and perform recursive
     // flushes or splits as necessary.  If we split, return a
