@@ -50,13 +50,15 @@
 // clean in-memory node only requires a write-back, whereas flushing
 // to an on-disk node requires reading it in and writing it out.
 
+#include <cassert>
+#include <cmath>
+#include <math.h>
 #include <map>
 #include <math.h>
 #include <vector>
-#include <cassert>
+
 #include "swap_space.hpp"
 #include "backing_store.hpp"
-
 #include "window_stat_tracker.hpp"
 ////////////////// Upserts
 
@@ -233,10 +235,67 @@ private:
 
   class node : public serializable
   {
+  private:
+    // Init class for sliding window statistic tracker on the Tree
+    // with default value for W value (size of sliding window)
+    window_stat_tracker stat_tracker;
   public:
     // Child pointers
     pivot_map pivots;
     message_map elements;
+    // Size of node to base other parameters on 
+    uint64_t max_node_size;
+    uint64_t min_node_size;
+    uint64_t min_flush_size;
+    // Node specific parameters
+    float epsilon;
+    uint64_t max_pivots;
+    uint64_t max_messages;
+    uint64_t node_level;
+
+    // TODO Base these defaults off of max pivots or max messages instead.
+    node()
+    : max_node_size(64)
+    , min_node_size(64 / 4)
+    , min_flush_size(64 / 16)
+    , epsilon(0.4)
+    , node_level(0)
+    {
+      max_pivots = calculate_max_pivots();
+      max_messages = max_node_size - max_pivots;
+      stat_tracker = window_stat_tracker();
+    }
+
+    node(float e, uint64_t level)
+    : max_node_size(64)
+    , min_node_size(64 / 4)
+    , min_flush_size(64 / 16)
+    , epsilon(e)
+    , node_level(level)
+    {
+      max_pivots = calculate_max_pivots();
+      max_messages = max_node_size - max_pivots;
+      stat_tracker = window_stat_tracker();
+    }
+
+    uint64_t calculate_max_pivots()
+    {
+      return (uint64_t)round(pow(max_node_size, epsilon));
+    }
+
+    void set_epsilon(float e) {
+      epsilon = e;
+      max_pivots = calculate_max_pivots();
+      max_messages = max_node_size - max_pivots;
+    }
+
+    void add_read() {
+      stat_tracker.add_read();
+    }
+
+    void add_write() {
+      stat_tracker.add_write();
+    }
 
     bool is_leaf(void) const
     {
@@ -364,15 +423,11 @@ private:
     //           destined for each child in pivots);
     pivot_map split(betree &bet)
     {
-      // UPDATED ASSERT doesn't check against max size of node. 
+      // UPDATED ASSERT doesn't check against max size of node.
       // This checks that at least the pivots or messages are outside of their bounds.
-      assert((pivots.size() >= bet.max_pivots) || (elements.size() >= bet.max_messages));
-      // This size split does a good job of causing the resulting
-      // nodes to have size between 0.4 * MAX_NODE_SIZE and 0.6 * MAX_NODE_SIZE.
-      // TODO If this results in too many pivots for this node, the last check in flush(...)
-      // should split again to reduce the number of pivots to the correct size. Need to validate.
-      int num_new_leaves = 
-          (pivots.size() + elements.size()) / (10 * bet.max_node_size / 24);
+      assert((pivots.size() >= max_pivots) || (elements.size() >= max_messages));
+      // Create as many new leaves as pivots will allow and divide the elements equally between them.
+      int num_new_leaves = max_pivots;
       // Make sure nothing here is left after adding to leaves
       int things_per_new_leaf =
           (pivots.size() + elements.size() + num_new_leaves - 1) / num_new_leaves;
@@ -389,7 +444,9 @@ private:
           // Moved all pivots and elements to new leaves
           break;
         // Allocate a new node
-        node_pointer new_node = bet.ss->allocate(new node);
+        auto e = epsilon;
+        auto l = node_level + 1;
+        node_pointer new_node = bet.ss->allocate(new node(e, l));
         // If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
         // Else if looping through elements...
@@ -421,7 +478,7 @@ private:
           }
           else
           {
-            // Must be a leaf. Move elements up to things_per_new_leaf into the new node. 
+            // Must be a leaf. Move elements up to things_per_new_leaf into the new node.
             assert(pivots.size() == 0);
             new_node->elements[elt_idx->first] = elt_idx->second;
             ++elt_idx;
@@ -445,7 +502,12 @@ private:
                        typename pivot_map::iterator begin,
                        typename pivot_map::iterator end)
     {
-      node_pointer new_node = bet.ss->allocate(new node);
+      // TODO epsilon might need to be calculated based on the nodes being merged.
+      // TODO If the merging of nodes moves the new node up a level, node_level needs to be decreased by 1.
+      // In the case of merge_small_children, the merged node(s) stay at the same level. 
+      auto e = epsilon;
+      auto l = node_level;
+      node_pointer new_node = bet.ss->allocate(new node(e, l));
       for (auto it = begin; it != end; ++it)
       {
         new_node->elements.insert(it->second.child->elements.begin(),
@@ -494,6 +556,12 @@ private:
     // Otherwise return an empty map.
     pivot_map flush(betree &bet, message_map &elts)
     {
+      // If this node is less than the tunable epsilon tree level, check for an epsilon update
+      if (node_level <= bet.tunable_epsilon_level) {
+        add_write();
+        // TODO Update epsilon if necessary
+      }
+
       // REMEMBER
       // If too many messages, we need to flush.
       // If too many pivots, we need to split.
@@ -512,7 +580,7 @@ private:
         for (auto it = elts.begin(); it != elts.end(); ++it)
           apply(it->first, it->second, bet.default_value);
         // Leaves don't contain pivots, so only need to check max message size.
-        if (elements.size() >= bet.max_messages)
+        if (elements.size() >= max_messages)
           result = split(bet);
         return result;
       }
@@ -543,7 +611,7 @@ private:
           auto elt_end = get_element_begin(next_pivot_idx);
           assert(elt_start == elt_end);
         }
-        // Flush the messages from further down the tree. 
+        // Flush the messages from further down the tree.
         pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts);
         // If more leaves were created from the flush, update our pivots.
         if (!new_children.empty())
@@ -566,7 +634,7 @@ private:
           apply(it->first, it->second, bet.default_value);
 
         // Now flush to out-of-core or clean children as necessary
-        while (elements.size() + pivots.size() >= bet.max_node_size)
+        while (elements.size() + pivots.size() >= max_node_size)
         {
           // Find the child with the largest set of messages in our buffer
           unsigned int max_size = 0;
@@ -585,15 +653,15 @@ private:
               max_size = dist;
             }
           }
-          // TODO Understand. Not sure how this means we have too many pivots. This might be fine, but we should investigate.
           // If one of these conditions is false, we have too many pivots
           // 1. the max node size is greater than the min flush size
           // 2. the max node size is not bigger than half the min flush size and the child is in memory
-          if (!( max_size > bet.min_flush_size ||
-                (max_size > bet.min_flush_size / 2 && child_pivot->second.child.is_in_memory()) )) {
+          if (!(max_size > min_flush_size ||
+                (max_size > min_flush_size / 2 && child_pivot->second.child.is_in_memory())))
+          {
             break; // We need to split because we have too many pivots
           }
-          
+
           auto elt_child_it = get_element_begin(child_pivot);
           auto elt_next_it = get_element_begin(next_pivot);
           message_map child_elts(elt_child_it, elt_next_it);
@@ -615,8 +683,8 @@ private:
         }
 
         // We have too many pivots to efficiently flush stuff down, so split
-        // This is checked on every flush that isn't on a leaf node 
-        if (pivots.size() > bet.max_pivots)
+        // This is checked on every flush that isn't on a leaf node
+        if (pivots.size() > max_pivots)
         {
           result = split(bet);
         }
@@ -628,9 +696,14 @@ private:
       return result;
     }
 
-    Value query(const betree &bet, const Key k) const
+    Value query(const betree &bet, const Key k)
     {
       debug(std::cout << "Querying " << this << std::endl);
+      // If this node is less than the tunable epsilon tree level, check for an epsilon update
+      if (node_level <= bet.tunable_epsilon_level) {
+        add_read();
+        // TODO Update epsilon if necessary
+      }
       if (is_leaf())
       {
         auto it = elements.lower_bound(MessageKey<Key>::range_start(k));
@@ -753,6 +826,10 @@ private:
       serialize(fs, context, pivots);
       fs << "elements:" << std::endl;
       serialize(fs, context, elements);
+      fs << "epsilon:" << std::endl;
+      serialize(fs, context, epsilon);
+      fs << "node_level:" << std::endl;
+      serialize(fs, context, node_level);
     }
 
     void _deserialize(std::iostream &fs, serialization_context &context)
@@ -762,6 +839,10 @@ private:
       deserialize(fs, context, pivots);
       fs >> dummy;
       deserialize(fs, context, elements);
+      fs >> dummy;
+      deserialize(fs, context, epsilon);
+      fs >> dummy;
+      deserialize(fs, context, node_level);
     }
   };
 
@@ -772,9 +853,15 @@ private:
   node_pointer root;
   uint64_t next_timestamp = 1; // Nothing has a timestamp of 0
   Value default_value;
-  float epsilon;
-  uint64_t max_messages;
-  uint64_t max_pivots;
+  float const starting_epsilon;
+  uint64_t tunable_epsilon_level;
+  
+
+  // Init class for sliding window statistic tracker on the Tree
+  // with default value for W value (size of sliding window)
+  window_stat_tracker stat_tracker = window_stat_tracker();
+  int operation_count = 0;
+  int ops_before_epsilon_update = 100; // TODO: tune
 
   // Init class for sliding window statistic tracker on the Tree
   // with default value for W value (size of sliding window)
@@ -786,32 +873,15 @@ public:
   betree(swap_space *sspace,
          uint64_t maxnodesize = DEFAULT_MAX_NODE_SIZE,
          uint64_t minnodesize = DEFAULT_MAX_NODE_SIZE / 4,
-         uint64_t minflushsize = DEFAULT_MIN_FLUSH_SIZE,
-         float epsilonvalue = 0.4) : ss(sspace),
-                                     min_flush_size(minflushsize),
-                                     max_node_size(maxnodesize),
-                                     min_node_size(minnodesize),
-                                     epsilon(epsilonvalue)
+         uint64_t minflushsize = DEFAULT_MIN_FLUSH_SIZE)
+      : ss(sspace),
+        min_flush_size(minflushsize),
+        max_node_size(maxnodesize),
+        min_node_size(minnodesize),
+        starting_epsilon(0.4),
+        tunable_epsilon_level(0)
   {
-    max_pivots = get_number_of_pivots_per_node(); 
-    max_messages = max_node_size - max_pivots; 
-    root = ss->allocate(new node);
-  }
-
-  uint64_t get_number_of_pivots_per_node() {
-    return (uint64_t)pow(max_node_size, epsilon);
-  }
-  
-  // Get the configured epsilon value
-  float get_epsilon() const {
-    return epsilon;
-  }
-
-  // Get the configured epsilon value
-  void set_epsilon(float e) {
-    epsilon = e;
-    max_pivots = get_number_of_pivots_per_node(); 
-    max_messages = max_node_size - max_pivots; 
+    root = ss->allocate(new node(0.4, 0));
   }
 
   // Insert the specified message and handle a split of the root if it
@@ -833,7 +903,9 @@ public:
     pivot_map new_nodes = root->flush(*this, tmp);
     if (new_nodes.size() > 0)
     {
-      root = ss->allocate(new node);
+      auto e = root->epsilon;
+      auto l = root->node_level + 1;
+      root = ss->allocate(new node(e, l));
       root->pivots = new_nodes;
     }
 

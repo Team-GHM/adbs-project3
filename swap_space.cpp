@@ -27,6 +27,18 @@ void deserialize(std::iostream &fs, serialization_context &context, int64_t &x)
   assert(fs.good());
 }
 
+void serialize(std::iostream &fs, serialization_context &context, float x)
+{
+  fs << x << " ";
+  assert(fs.good());
+}
+
+void deserialize(std::iostream &fs, serialization_context &context, float &x)
+{
+  fs >> x;
+  assert(fs.good());
+}
+
 void serialize(std::iostream &fs, serialization_context &context, std::string x)
 {
   fs << x.size() << ",";
