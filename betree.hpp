@@ -54,6 +54,8 @@
 #include <math.h>
 #include <vector>
 #include <cassert>
+#include <algorithm>
+
 #include "swap_space.hpp"
 #include "backing_store.hpp"
 
@@ -456,18 +458,22 @@ private:
       return new_node;
     }
 
+
+
     // Wrapper method for recursively merging the tree to shorten it 
     void merge_tree(betree &bet) {
       std::cout << "calling recursive merge in merge_tree..."  << std::endl;
       
       std::cout << "max_pivots is: " << std::to_string(bet.max_pivots) << std::endl;
+      
+      
       // start on the root 
       bet.root->merge_node_recursive(bet);
 
       // after the recursive merging, the root node might also need to be merged
-      if (bet.root->pivots.size() > bet.max_pivots) {
-       bet.root->merge_node_recursive(bet);
-      }
+      //if (bet.root->pivots.size() > bet.max_pivots) {
+      // bet.root->merge_node_recursive(bet);
+      //}
     }
 
 
@@ -477,9 +483,9 @@ private:
     
     void merge_node_recursive(betree &bet) {
 	if (is_leaf()) {
-	    std::cout << "leaf node so returning" << std::endl;
-	return;
-      }
+	    //std::cout << "leaf node so returning" << std::endl;
+	    return;
+        }
 
       // for all pivots in this node
       for (auto beginit = pivots.begin(); beginit != pivots.end(); ++beginit) {
@@ -488,7 +494,7 @@ private:
 	uint64_t total_pivots = 0;
         auto endit = beginit; // create 2nd iterator
 
-	std::cout << "summing pivot sizes" << std::endl;
+	//std::cout << "summing pivot sizes" << std::endl;
 	// Iterate through the pivots 
         while (endit != pivots.end()) {
 	  // if merging the next pivot results in more than max_pivots
@@ -498,12 +504,12 @@ private:
 	  total_pivots += endit->second.child->pivots.size();
           ++endit;// advance to next pivot
         }
-	std::cout << "total_pivots: " << std::to_string(total_pivots) << std::endl;
+	//std::cout << "total_pivots: " << std::to_string(total_pivots) << std::endl;
 
 	// if children arent the same
         if (endit != beginit && total_pivots != 0) {
 
-	  std::cout << "calling merge()" << std::endl;
+	  //std::cout << "calling merge()" << std::endl;
           // merge the child nodes from 'beginit' to 'endit'
           node_pointer merged_node = merge(bet, beginit, endit);
 
@@ -520,7 +526,7 @@ private:
 
       // recursively merge the children of this node
       for (auto &pivot : pivots) {
-      	      std::cout << "recursively calling merg_node_recursive()" << std::endl;	
+      	      //std::cout << "recursively calling merg_node_recursive()" << std::endl;	
 	      pivot.second.child->merge_node_recursive(bet);
       }
     }
@@ -571,6 +577,37 @@ private:
         }
       }
     }
+
+
+
+    // recursive method to return the height of the tree
+    int tree_height_recursive(betree &bet, int currentLevel = 0) {
+        if (is_leaf()) {
+            return currentLevel;
+        }
+
+        std::vector<int> heights;
+        for (auto &pivot : pivots) {
+                int height = pivot.second.child->tree_height_recursive(bet, currentLevel + 1);
+		heights.push_back(height);
+        }
+
+        return *std::max_element(heights.begin(), heights.end());
+    }
+ 
+
+    // recursive method to count all the nodes in the tree
+    int node_count_recursive(betree &bet){
+	int count = 1; // current node
+
+	for (auto &pivot : pivots) {
+		count += pivot.second.child->node_count_recursive(bet);
+	}
+
+	return count;
+    }
+
+
 
 
     // Receive a collection of new messages and perform recursive
@@ -891,9 +928,17 @@ public:
   float get_epsilon() const {
     return epsilon;
   }
+   
+  int get_tree_height() {
+      return root->tree_height_recursive(*this, 0);
+  }
+  int get_node_count() {
+	return root->node_count_recursive(*this);
+  }
 
   // Get the configured epsilon value
   void set_epsilon(float e) {
+    //std::cout << "max_pivots before merge: " << std::to_string(max_pivots) << std::endl;
     float prev_epsilon = epsilon;
     epsilon = e;
     max_pivots = get_number_of_pivots_per_node(); 
@@ -901,8 +946,18 @@ public:
 
     if (epsilon > prev_epsilon)
     {
+	    int height = get_tree_height();
+	    std::cout << "tree height before merge is: " << std::to_string(height) << std::endl;
+	    int nodeCount = get_node_count();
+	    std::cout << "node Count before merge is: " << std::to_string(nodeCount) << std::endl;
+
 	    std::cout << "Calling recursive merge ..." << std::endl;
     	    root->merge_tree(*this);
+	    height = get_tree_height();
+	    std::cout << "tree height after merge is: " << std::to_string(height) << std::endl;
+    	    nodeCount = get_node_count();
+	    std::cout << "node Count after merge is: " << std::to_string(nodeCount) << std::endl;
+    		
     } 
   }
 
@@ -985,6 +1040,8 @@ public:
     {
     }
   }
+
+
 
   class iterator
   {
