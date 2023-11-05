@@ -252,6 +252,8 @@ private:
     uint64_t max_pivots;
     uint64_t max_messages;
     uint64_t node_level;
+    int operation_count;
+    int ops_before_epsilon_update;
 
     // TODO Base these defaults off of max pivots or max messages instead.
     node()
@@ -260,6 +262,8 @@ private:
     , min_flush_size(64 / 16)
     , epsilon(0.4)
     , node_level(0)
+    , operation_count(0)
+    , ops_before_epsilon_update(100) // TODO: tune
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -272,6 +276,8 @@ private:
     , min_flush_size(64 / 16)
     , epsilon(e)
     , node_level(level)
+    , operation_count(0)
+    , ops_before_epsilon_update(100) // TODO: tune
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -291,10 +297,24 @@ private:
 
     void add_read() {
       stat_tracker.add_read();
+      operation_count += 1;
+      // periodically update epsilon
+      if (operation_count == ops_before_epsilon_update) {
+          float new_epsilon = stat_tracker.get_epsilon();
+          set_epsilon(new_epsilon);
+          operation_count = 0;
+      }
     }
 
     void add_write() {
       stat_tracker.add_write();
+      operation_count += 1;
+      // periodically update epsilon
+      if (operation_count == ops_before_epsilon_update) {
+          float new_epsilon = stat_tracker.get_epsilon();
+          set_epsilon(new_epsilon);
+          operation_count = 0;
+      }
     }
 
     bool is_leaf(void) const
@@ -556,10 +576,10 @@ private:
     // Otherwise return an empty map.
     pivot_map flush(betree &bet, message_map &elts)
     {
-      // If this node is less than the tunable epsilon tree level, check for an epsilon update
+      // If this node is less than the tunable epsilon tree level
+      // Checks for an epsilon update.
       if (node_level <= bet.tunable_epsilon_level) {
         add_write();
-        // TODO Update epsilon if necessary
       }
 
       // REMEMBER
@@ -699,10 +719,10 @@ private:
     Value query(const betree &bet, const Key k)
     {
       debug(std::cout << "Querying " << this << std::endl);
-      // If this node is less than the tunable epsilon tree level, check for an epsilon update
+      // If this node is less than the tunable epsilon tree level
+      // Checks for an epsilon update.
       if (node_level <= bet.tunable_epsilon_level) {
         add_read();
-        // TODO Update epsilon if necessary
       }
       if (is_leaf())
       {
@@ -856,19 +876,6 @@ private:
   float const starting_epsilon;
   uint64_t tunable_epsilon_level;
   
-
-  // Init class for sliding window statistic tracker on the Tree
-  // with default value for W value (size of sliding window)
-  window_stat_tracker stat_tracker = window_stat_tracker();
-  int operation_count = 0;
-  int ops_before_epsilon_update = 100; // TODO: tune
-
-  // Init class for sliding window statistic tracker on the Tree
-  // with default value for W value (size of sliding window)
-  window_stat_tracker stat_tracker = window_stat_tracker();
-  int operation_count = 0;
-  int ops_before_epsilon_update = 100; // TODO: tune
-
 public:
   betree(swap_space *sspace,
          uint64_t maxnodesize = DEFAULT_MAX_NODE_SIZE,
@@ -888,16 +895,6 @@ public:
   // occurs.
   void upsert(int opcode, Key k, Value v)
   {
-    stat_tracker.add_write();
-    operation_count += 1;
-
-    // periodically update epsilon
-    if (operation_count == ops_before_epsilon_update) {
-        float new_epsilon = stat_tracker.get_epsilon();
-        set_epsilon(new_epsilon);
-        operation_count = 0;
-    }
-
     message_map tmp;
     tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
     pivot_map new_nodes = root->flush(*this, tmp);
@@ -928,18 +925,7 @@ public:
 
   Value query(Key k)
   {
-    stat_tracker.add_read();
-    operation_count += 1;
-
     Value v = root->query(*this, k);
-    
-    // Get and set new Epsilon periodically
-    if (operation_count == ops_before_epsilon_update) {
-	float new_epsilon = stat_tracker.get_epsilon();
-	set_epsilon(new_epsilon);
-	operation_count = 0;
-    }
-    
     return v;
   }
 
