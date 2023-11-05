@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include "betree.hpp"
 #include <fstream> 
+#include "chrono"
 
 void timer_start(uint64_t &timer)
 {
@@ -19,74 +20,111 @@ void timer_stop(uint64_t &timer)
     timer += 1000000 * t.tv_sec + t.tv_usec;
 }
 
-/*int next_command(FILE *input, int *op, uint64_t *arg)
+void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t number_of_distinct_keys, uint64_t random_seed, const char* outputFileName)
 {
-    int ret;
-    char command[64];
-
-    ret = fscanf(input, "%s %ld", command, arg);
-    if (ret == EOF)
-        return EOF;
-    else if (ret != 2)
-    {
-        fprintf(stderr, "Parse error\n");
-        exit(3);
-    }
-
-    if (strcmp(command, "Query") == 0)
-    {
-        *op = 3;
-        if (1 != fscanf(input, " -> %s", command))
-        {
-            fprintf(stderr, "Parse error\n");
-            exit(3);
-        }
-    }
-    else
-    {
-        return -1; // Skip other operations
-    }
-
-    return 0;
-}*/
-
-void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t number_of_distinct_keys, uint64_t random_seed, const char* outputFileName)
-{
-    srand(random_seed);
-
     std::vector<uint64_t> times;
     std::vector<double> throughputs;
 
     // Pre-load the tree with data
-    for (uint64_t i = 0; i < nops; i++)
-    {
-        uint64_t t = rand() % number_of_distinct_keys;
-        std::string value = std::to_string(t) + ":";
-        b.update(t, value);
-        printf("Updated key %ld with value: %s\n", t, value.c_str());
+    std::ifstream file("random_keys.txt");
+    if (!file) {
+        std::cerr << "Error: Could not open the file." << std::endl;
     }
 
-    // Now go back and query it
+    std::string line;
+    std::vector<uint64_t> queryKeys; // Store the keys to be queried
+
+    /*while (std::getline(file, line)) {
+        uint64_t key;
+        std::string value;
+        std::istringstream iss(line);
+        if (iss >> key >> value) {
+            queryKeys.push_back(key); // Add the key to the queryKeys vector
+        }
+    }*/
+    srand(random_seed);
+
+    std::vector<std::pair<uint64_t, double>> throughputData;  // Stores (iteration, throughput) pairs
+    /*uint64_t totalIterations = 100;  // Total number of iterations
+
+    for (uint64_t j = 0; j < totalIterations; j++)
+    {
+        uint64_t timer = 0;
+        timer_start(timer);
+        for (uint64_t i = 0; i < nops / totalIterations; i++)
+        {
+            uint64_t t = rand() % number_of_distinct_keys;
+            b.update(t, std::to_string(t) + ":");
+        }
+        timer_stop(timer);
+        double throughput = (1.0 * (nops / totalIterations) * 1000000) / timer;
+        throughputData.push_back(std::make_pair(j, throughput));
+    }*/
+
     srand(random_seed);
     uint64_t overall_timer = 0;
     timer_start(overall_timer);
+    uint64_t nops_query = 0.3 * nops;  // 30% of nops
+
+    uint64_t nops_update = 0.1 * nops;  // 70% of nops
+    printf("nops: %lu\n", nops_update);
+
+    file.clear();
+    file.seekg(0);
+
     for (uint64_t i = 0; i < nops; i++)
     {
-        //uint64_t t = rand() % number_of_distinct_keys;
-        //b.query(t);
-        uint64_t timer = 0;
-        timer_start(timer);
+        std::chrono::high_resolution_clock::time_point start_time, end_time;
 
-        uint64_t t = rand() % number_of_distinct_keys;
-        std::string result = b.query(t);
+        uint64_t timers = 0;
+        uint64_t timers2 = 0;
 
-        timer_stop(timer);
-        printf("Query for key %ld returned value: %s\n", t, result.c_str());
-        double throughput2 = (1000000) / timer;
-        times.push_back(i + 1);
-        throughputs.push_back(throughput2);
+        if (nops_update > 0)
+        {
+            // Perform an update
+            while (std::getline(file, line)) {
+                uint64_t key;
+                std::string value;
+                std::istringstream iss(line);
+                if (iss >> key >> value) {
+                    timer_start(timers2);
+                    // Update b with the key and value
+                    b.update(key, value);
+                    timer_stop(timers2);
+                    //printf("Updated key %ld with value: %s\n", key, value.c_str());
+                    queryKeys.push_back(key); 
+                    printf("Updated key %ld with value: %s\n", key, value.c_str());
+                    // Add the key to the queryKeys vector
+                    nops_update--;
+                    printf("nops_update: %lu\n", nops_update);
+                    //double timer_us = timers2 / 1000000;
+                    double throughput3 = timers2;
+                    times.push_back(i + 1);
+                    throughputs.push_back(throughput3);
+                }
+            }
+        }
+        else if (nops_query > 0)
+        {
+            printf("Test");
+            // Perform a query
+            if (!queryKeys.empty()) {
+            uint64_t t = queryKeys.back();
+            queryKeys.pop_back();
+            timer_start(timers);
+            std::string result = b.query(t);
+            timer_stop(timers);
+            printf("Query for key %ld returned value: %s\n", t, result.c_str());
+            //double timer_us = timers / 1000;
+            double throughput2 = timers;
+            times.push_back(i + 1);
+            throughputs.push_back(throughput2);
+            printf("nops_query: %lu\n", timers);
+            nops_query--;
+            }
+        }
     }
-    timer_stop(overall_timer);
+    timer_stop(overall_timer); 
 
     // Output time and throughput data to the output file
     std::ofstream outputFile(outputFileName);
@@ -103,12 +141,11 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
         std::cerr << "Failed to open output file for writing." << std::endl;
         exit(1);
     }
-
     double throughput = (1.0 * nops * 1000000) / overall_timer;
     printf("# overall: %ld %ld, %f\n", nops, overall_timer, throughput);
 }
 
-#define DEFAULT_TEST_MAX_NODE_SIZE (1ULL<<6)
+#define DEFAULT_TEST_MAX_NODE_SIZE (1ULL << 6)
 #define DEFAULT_TEST_MIN_FLUSH_SIZE (DEFAULT_TEST_MAX_NODE_SIZE / 4)
 #define DEFAULT_TEST_CACHE_SIZE (4)
 #define DEFAULT_TEST_NDISTINCT_KEYS (1ULL << 10)
@@ -196,12 +233,9 @@ int main(int argc, char **argv)
         }
     }
 
-    FILE *script_input = NULL;
-    FILE *script_output = NULL;
-
-    if (mode == NULL || (strcmp(mode, "benchmark-queries") != 0))
+    if (mode == NULL || (strcmp(mode, "benchmark-upserts") != 0))
     {
-        std::cerr << "Must specify mode as \"benchmark-queries\"" << std::endl;
+        std::cerr << "Must specify mode as \"benchmark-upserts\"" << std::endl;
         exit(1);
     }
 
@@ -212,7 +246,7 @@ int main(int argc, char **argv)
     }
 
     ////////////////////////////////////////////////////////
-    // Construct a betree and run the benchmark queries   //
+    // Construct a betree and run the benchmark upserts  //
     ////////////////////////////////////////////////////////
 
     one_file_per_object_backing_store ofpobs(backing_store_dir);
@@ -220,7 +254,7 @@ int main(int argc, char **argv)
     betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
 
     char* outputFileName = "throughput.txt"; // Name of the output file
-    benchmark_queries(b, nops, number_of_distinct_keys, random_seed, outputFileName);
+    benchmark_upserts(b, nops, number_of_distinct_keys, random_seed, outputFileName);
 
     return 0;
 }
