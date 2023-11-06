@@ -199,6 +199,7 @@ class betree
 private:
 
   class node;
+
   // We let a swap_space handle all the I/O.
   typedef typename swap_space::pointer<node> node_pointer;
   class child_info : public serializable
@@ -231,12 +232,51 @@ private:
     node_pointer child;
     uint64_t child_size;
   };
+
+  // Parent pointer info
+  class parent_info : public serializable
+  {
+  public:
+    parent_info(void)
+      : parent(),
+	parent_size(0)
+    {}
+    
+    parent_info(node_pointer parent, uint64_t parent_size)
+      : parent(parent),
+	parent_size(parent_size)
+    {}
+
+
+    void _serialize(std::iostream &fs, serialization_context &context) {
+      serialize(fs, context, parent);
+      fs << " ";
+      serialize(fs, context, parent_size);
+    }
+
+    void _deserialize(std::iostream &fs, serialization_context &context) {
+      deserialize(fs, context, parent);
+      deserialize(fs, context, parent_size);
+    }
+    
+    node_pointer parent;
+    uint64_t parent_size;
+  };
+  ////////////////// ------ //
+
+
+
+  typedef typename std::map<Key, parent_info> parent_map;
   typedef typename std::map<Key, child_info> pivot_map;
   typedef typename std::map<MessageKey<Key>, Message<Value>> message_map;
 
   class node : public serializable
   {
   public:
+    
+    // Parent pointer 
+    parent_map parent;
+
     // Child pointers
     pivot_map pivots;
     message_map elements;
@@ -277,6 +317,12 @@ private:
     get_pivot(const Key &k)
     {
       return get_pivot<typename pivot_map::iterator, pivot_map>(pivots, k);
+    }
+
+    // get the pointer info for the parent of this node 
+    parent_map get_parent()
+    {
+	return parent;
     }
 
     // Return iterator pointing to the first element with mk >= k.
@@ -363,6 +409,7 @@ private:
       }
     }
 
+
     // Requires: there are less than MIN_FLUSH_SIZE things in elements
     //           destined for each child in pivots);
     pivot_map split(betree &bet)
@@ -444,6 +491,8 @@ private:
       return result;
     }
 
+    // Merge method - merges the pivots starting at 'begin' and ending at 'end'
+    // -----------------------
     node_pointer merge(betree &bet,
                        typename pivot_map::iterator begin,
                        typename pivot_map::iterator end)
@@ -459,11 +508,13 @@ private:
       return new_node;
     }
 
+    // Merge small children - Merges sibling nodes that are small. 
     void merge_small_children(betree &bet)
     {
       if (is_leaf())
         return;
 
+      // iterate over children, accumulate small sizes to merge
       for (auto beginit = pivots.begin(); beginit != pivots.end(); ++beginit)
       {
         uint64_t total_size = 0;
@@ -478,15 +529,18 @@ private:
         if (endit != beginit)
         {
           node_pointer merged_node = merge(bet, beginit, endit);
-          for (auto tmp = beginit; tmp != endit; ++tmp)
+          
+	  // erase e
+	  for (auto tmp = beginit; tmp != endit; ++tmp)
           {
             tmp->second.child->elements.clear();
             tmp->second.child->pivots.clear();
           }
-          Key key = beginit->first;
-          pivots.erase(beginit, endit);
-          pivots[key] = child_info(merged_node, merged_node->pivots.size() + merged_node->elements.size());
-          beginit = pivots.lower_bound(key);
+
+	  Key key = beginit->first; // the key of pivot everything was merged into
+          pivots.erase(beginit, endit);// erase old children
+	  pivots[key] = child_info(merged_node, merged_node->pivots.size() + merged_node->elements.size()); // update the child_info of the pivot
+	  beginit = pivots.lower_bound(key); // update for next sibling in loop
         }
       }
     }
