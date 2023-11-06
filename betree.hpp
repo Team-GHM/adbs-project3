@@ -242,113 +242,34 @@ private:
   {
   public:
 
+    // constructors
     parent_info(void)
         : parent(), parent_size(0)
     {
     }
-
 
     parent_info(node_pointer parent, uint64_t parent_size)
         : parent(parent),
           parent_size(parent_size)
     {
     }    
-	  
-    /*
-    parent_info(void)
-      : parent_size(0)
-    {
-      parentUnion par;
-      par.root_val = 0;
-      parent = par;
-      pointing = false;
-    }
-
-    parent_info(node_pointer par, uint64_t parent_size)
-      : parent_size(parent_size)
-    {
-      parentUnion parU;
-      par.node_ptr = par;
-      parent = parU;
-      pointing = true;
-    }
-*/
-    /*
-    parent_info(node_pointer parent, uint64_t parent_size)
-      : parent_type(NodeType),
-        parent_size(parent_size)
-    {
-      parent.node_ptr = parent;
-    }
-
-    parent_info(int parent, uint64_t parent_size)
-      : parent_type(IntType),
-        parent_size(parent_size)
-    {
-      parent.int_value = parent;
-    }
-
-      */
-    
-
+	 
+    // Serialization/deserialization
     void _serialize(std::iostream &fs, serialization_context &context) {
-  
         serialize(fs, context, parent);
         fs << " ";
         serialize(fs, context, parent_size);
-/*
-      if(pointing){
-        serialize(fs, context, parent.node_ptr);
-        fs << " ";
-        serialize(fs, context, parent_size);
-      }
-      else {
-	serialize(fs, context, parent.root_val);
-        fs << " ";
-        serialize(fs, context, parent_size);
-      }*/
     }
 
-    void _deserialize(std::iostream &fs, serialization_context &context) {
-     
+    void _deserialize(std::iostream &fs, serialization_context &context) { 
         deserialize(fs, context, parent);
         deserialize(fs, context, parent_size);
- /*	    
-	  if(pointing){
-	    deserialize(fs, context, parent.node_ptr);
- 	    deserialize(fs, context, parent_size);
-      }
-      else {
-            deserialize(fs, context, parent.root_val);
-            deserialize(fs, context, parent_size);
-      }*/
     }
 
-
+    // member vars
     node_pointer parent;
-    /*
-    union parentUnion {
-	node_pointer node_ptr;
-	int root_val;
-    };
-    parentUnion parent;
-*/
     uint64_t parent_size;
-    
-  //  bool pointing;
-    
-    
-    
-    
-    /*
-    enum ParentType { NodeType, IntType };
-    ParentType parent_type;
-
-    union {
-      node_pointer node_ptr;
-      int int_value;
-    } parent;
-    */
+     
   };
   ////////////////// ------ //
  
@@ -398,7 +319,7 @@ private:
     }
 
     // constructor for root with no pivot
-    node(float e, uint64_t level)
+    /*node(float e, uint64_t level)
     : max_node_size(64)
     , min_node_size(64 / 4)
     , min_flush_size(64 / 16)
@@ -411,7 +332,7 @@ private:
       max_messages = max_node_size - max_pivots;
       stat_tracker = window_stat_tracker();
     }
-
+    */
 
 
     node(float e, uint64_t level, parent_info parent)
@@ -1073,9 +994,9 @@ public:
         starting_epsilon(0.4),
         tunable_epsilon_level(0)
   {
+    parent_info parent;
+    root = ss->allocate(new node(0.4, 0, parent));
     //root = ss->allocate(new node(0.4, 0));
-    //parent_info parent = parent_info(0, 0);
-    root = ss->allocate(new node(0.4, 0));//, parent));
   }
 
 
@@ -1088,11 +1009,18 @@ public:
     pivot_map new_nodes = root->flush(*this, tmp);
     if (new_nodes.size() > 0)
     {
+	
+      parent_info parent;
+      /*for (auto &pivot : new_nodes){
+	      parent = pivot.second.child->get_parent();
+	      break;
+      }*/    
+
       auto e = root->epsilon;
       auto l = root->node_level + 1;
       
-      //parent_info parent = parent_info(0, 0);
-      root = ss->allocate(new node(e, l));//, parent));
+      root = ss->allocate(new node(e, l, parent));
+      //root = ss->allocate(new node(e, l));
       root->pivots = new_nodes;
     }
 
