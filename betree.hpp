@@ -240,9 +240,9 @@ private:
   {
   public:
     parent_info(void)
-      : parent(),
-	parent_size(0)
-    {}
+      : parent(), parent_size(0)
+    {
+    }
 
     parent_info(node_pointer parent, uint64_t parent_size)
       : parent(parent),
@@ -266,7 +266,6 @@ private:
   };
   ////////////////// ------ //
 
-  typedef typename std::map<Key, parent_info> parent_map;
   typedef typename std::map<Key, child_info> pivot_map;
   typedef typename std::map<MessageKey<Key>, Message<Value>> message_map;
 
@@ -278,9 +277,6 @@ private:
     window_stat_tracker stat_tracker;
   public:
     
-    // Parent pointer 
-    parent_map parent;
-
     // Child pointers
     pivot_map pivots;
     message_map elements;
@@ -295,6 +291,7 @@ private:
     uint64_t node_level;
     int operation_count;
     int ops_before_epsilon_update;
+    parent_info parent; // parent pointer info
 
     // TODO Base these defaults off of max pivots or max messages instead.
     node()
@@ -308,9 +305,10 @@ private:
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
-      stat_tracker = window_stat_tracker();
+      stat_tracker = window_stat_tracker();  
     }
 
+    // constructor for root with no pivot
     node(float e, uint64_t level)
     : max_node_size(64)
     , min_node_size(64 / 4)
@@ -319,6 +317,23 @@ private:
     , node_level(level)
     , operation_count(0)
     , ops_before_epsilon_update(100) // TODO: tune
+    {
+      max_pivots = calculate_max_pivots();
+      max_messages = max_node_size - max_pivots;
+      stat_tracker = window_stat_tracker();
+    }
+
+
+
+    node(float e, uint64_t level, parent_info parent)
+    : max_node_size(64)
+    , min_node_size(64 / 4)
+    , min_flush_size(64 / 16)
+    , epsilon(e)
+    , node_level(level)
+    , operation_count(0)
+    , ops_before_epsilon_update(100) // TODO: tune
+    , parent(parent) // set parent pointer
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -424,7 +439,7 @@ private:
     }
 
     // get the pointer info for the parent of this node
-    parent_map get_parent()
+    parent_info get_parent()
     {
 	return parent;
     }
@@ -540,8 +555,10 @@ private:
         // Allocate a new node
         auto e = epsilon;
         auto l = node_level + 1;
-        node_pointer new_node = bet.ss->allocate(new node(e, l));
-        // If there are still pivots to move...
+	parent_info parent = parent;
+	node_pointer new_node = bet.ss->allocate(new node(e, l, parent));
+        
+	// If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
         // Else if looping through elements...
         // result[elt_idx->first.key] = child_info(new_node, 0 + 0)
@@ -601,7 +618,8 @@ private:
       // In the case of merge_small_children, the merged node(s) stay at the same level. 
       auto e = epsilon;
       auto l = node_level;
-      node_pointer new_node = bet.ss->allocate(new node(e, l));
+      parent_info parent = this.parent;
+      node_pointer new_node = bet.ss->allocate(new node(e, l, parent));
       for (auto it = begin; it != end; ++it)
       {
         new_node->elements.insert(it->second.child->elements.begin(),
@@ -924,6 +942,8 @@ private:
       serialize(fs, context, epsilon);
       fs << "node_level:" << std::endl;
       serialize(fs, context, node_level);
+      fs << "parent:" << std::endl;
+      serialize(fs, context, parent);
     }
 
     void _deserialize(std::iostream &fs, serialization_context &context)
@@ -937,6 +957,8 @@ private:
       deserialize(fs, context, epsilon);
       fs >> dummy;
       deserialize(fs, context, node_level);
+      fs >> dummy;
+      deserialize(fs, context, parent);
     }
   };
 
@@ -962,7 +984,6 @@ public:
         starting_epsilon(0.4),
         tunable_epsilon_level(0)
   {
-   
     root = ss->allocate(new node(0.4, 0));
   }
 
@@ -978,6 +999,7 @@ public:
     {
       auto e = root->epsilon;
       auto l = root->node_level + 1;
+      
       root = ss->allocate(new node(e, l));
       root->pivots = new_nodes;
     }
