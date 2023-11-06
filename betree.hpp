@@ -58,7 +58,7 @@
 #include <cmath>
 #include <vector>
 #include <cassert>
-
+#include <algorithm>
 
 #include "swap_space.hpp"
 #include "backing_store.hpp"
@@ -600,6 +600,56 @@ private:
       }
     }
 
+
+    // recursive method to return the height of the tree
+    int tree_height_recursive(betree &bet, int currentLevel = 0) {
+        if (is_leaf()) {
+            return currentLevel;
+        }
+
+        std::vector<int> heights;
+        for (auto &pivot : pivots) {
+                int height = pivot.second.child->tree_height_recursive(bet, currentLevel + 1);
+		heights.push_back(height);
+        }
+	// Return max height
+        return *std::max_element(heights.begin(), heights.end());
+    }
+ 
+
+    // recursive method to count all the nodes in the tree
+    int node_count_recursive(betree &bet){
+	int count = 1; // current node
+	for (auto &pivot : pivots) {
+		count += pivot.second.child->node_count_recursive(bet);
+	}
+	return count;
+    }
+   // recursive method to count all the pivots in the tree
+    int pivot_count_recursive(betree &bet){
+        int count = 0;
+        for (auto &pivot : pivots) {
+                count += pivot.second.child->pivot_count_recursive(bet);
+        }
+        return count;
+    }
+    // Print the amount of messages in each node
+    void message_count_recursive(betree &bet){
+	if (is_leaf()){
+		std::cout << "leaf messages: " << std::to_string(elements.size()) << std::endl;
+		return;
+	}
+	else {
+		std::cout << "messages: " << std::to_string(elements.size()) << std::endl;
+		for (auto &pivot : pivots) {
+			pivot.second.child->message_count_recursive(bet);
+		}
+	}
+    }
+
+
+
+
     // Receive a collection of new messages and perform recursive
     // flushes or splits as necessary.  If we split, return a
     // map with the new pivot keys pointing to the new nodes.
@@ -922,6 +972,20 @@ public:
     root = ss->allocate(new node(0.4, 0));
   }
 
+  // Wrapper methods to call recursive methods to 
+  // get Tree stats
+  int get_tree_height() {
+      return root->tree_height_recursive(*this, 0);
+  }
+  int get_node_count() {
+	return root->node_count_recursive(*this);
+  }
+  int get_pivot_count() {
+	return root->pivot_count_recursive(*this);
+  }
+  void print_message_count_in_nodes(){
+ 	message_count_recursive(*this);
+  }
 
   // Insert the specified message and handle a split of the root if it
   // occurs.
