@@ -233,6 +233,40 @@ private:
     node_pointer child;
     uint64_t child_size;
   };
+
+
+  // Parent pointer info
+  class parent_info : public serializable
+  {
+  public:
+    parent_info(void)
+      : parent(),
+	parent_size(0)
+    {}
+
+    parent_info(node_pointer parent, uint64_t parent_size)
+      : parent(parent),
+	parent_size(parent_size)
+    {}
+
+
+    void _serialize(std::iostream &fs, serialization_context &context) {
+      serialize(fs, context, parent);
+      fs << " ";
+      serialize(fs, context, parent_size);
+    }
+
+    void _deserialize(std::iostream &fs, serialization_context &context) {
+      deserialize(fs, context, parent);
+      deserialize(fs, context, parent_size);
+    }
+
+    node_pointer parent;
+    uint64_t parent_size;
+  };
+  ////////////////// ------ //
+
+  typedef typename std::map<Key, parent_info> parent_map;
   typedef typename std::map<Key, child_info> pivot_map;
   typedef typename std::map<MessageKey<Key>, Message<Value>> message_map;
 
@@ -243,6 +277,10 @@ private:
     // with default value for W value (size of sliding window)
     window_stat_tracker stat_tracker;
   public:
+    
+    // Parent pointer 
+    parent_map parent;
+
     // Child pointers
     pivot_map pivots;
     message_map elements;
@@ -383,6 +421,12 @@ private:
     get_pivot(const Key &k)
     {
       return get_pivot<typename pivot_map::iterator, pivot_map>(pivots, k);
+    }
+
+    // get the pointer info for the parent of this node
+    parent_map get_parent()
+    {
+	return parent;
     }
 
     // Return iterator pointing to the first element with mk >= k.
