@@ -283,12 +283,23 @@ public:
     pointer(void) :
       ss(NULL),
       target(0)
-    {}
+    {
+	   std::cout << "Void constructing...." << std::endl;
+    	  //ss = NULL;
+	  //target = 0;
+    }
+
     
     pointer(const pointer &other) {
+      /*std::cout << "Constructing with params.... target: " << std::to_string(other.target) << std::endl;
+      if (other.ss == NULL){
+	std::cout << "other.ss is NULL" << std::endl;
+      }*/
+      
       ss = other.ss;
       target = other.target;
       if (target > 0) {
+	std::cout << "target is > 0 " << std::endl;
 	assert(ss->objects.count(target) > 0);
 	ss->objects[target]->refcount++;
       }

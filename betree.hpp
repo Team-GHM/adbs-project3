@@ -565,16 +565,24 @@ private:
         // Allocate a new node
         auto e = epsilon;
         auto l = node_level + 1;
+
+	std::cout << "creating new node with same parent..."<< std::endl;
 	parent_info parent = parent;
+	
+	// TODO: create new parent info with correct size for new_node
+	
+	// TODO: update the current parent_info to be correctly sized
+	
 	node_pointer new_node = bet.ss->allocate(new node(e, l, parent));
         
 	// If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
         // Else if looping through elements...
         // result[elt_idx->first.key] = child_info(new_node, 0 + 0)
-        result[pivot_idx != pivots.end() ? pivot_idx->first : elt_idx->first.key] = child_info(new_node,
-                                                                                               new_node->elements.size() +
-                                                                                                   new_node->pivots.size());
+        result[pivot_idx != pivots.end() ? pivot_idx->first : elt_idx->first.key] = child_info(new_node, new_node->elements.size() + new_node->pivots.size());
+
+	std::cout << "after made new_node" << std::endl;
+
         // While there are still things to move to this leaf
         while (things_moved < (i + 1) * things_per_new_leaf &&
                (pivot_idx != pivots.end() || elt_idx != elements.end()))
@@ -1020,6 +1028,11 @@ public:
       root->parent = parent;
         
       root->pivots = new_nodes;
+    
+      // update the pivots to have the root as their parents
+      for (auto &pivot : root->pivots){
+		pivot.second.child->parent = parent;
+      }
     }
 
   }
