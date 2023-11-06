@@ -289,7 +289,34 @@ private:
 
     uint64_t calculate_max_pivots()
     {
-      return (uint64_t)round(pow(max_node_size, epsilon));
+  
+      // Calculate B^(Epsilon)
+      float B_eps = pow(max_node_size, epsilon);
+      uint64_t B = (uint64_t)round(B_eps);
+
+      // Set it to the nearest multiple of 4
+      int remainder = B % 4;
+      int max_pivots;
+
+      if (remainder < 2) {
+                max_pivots = B - remainder;
+      } else if (remainder == 2) {
+	      if (B > 32){
+                    // round up to nearest 4 multiple
+                    // for optimizing towards reads
+                    max_pivots = B + remainder;
+ 	      } 
+	      else {
+                    // round down to nearest 4 multiple
+                    // for optimizing towards rights
+                    max_pivots = B - remainder;
+              }
+      }
+      else {
+            max_pivots = B + (4 - remainder);
+      }
+
+      return max_pivots;
     }
 
     void set_epsilon(float e) {
@@ -892,12 +919,12 @@ public:
         tunable_epsilon_level(0)
   {
    
-    max_pivots = get_number_of_pivots_per_node(); 
-    max_messages = max_node_size - max_pivots; 
+    //max_pivots = get_number_of_pivots_per_node(); 
+    //max_messages = max_node_size - max_pivots; 
     root = ss->allocate(new node(0.4, 0));
   }
 
-  uint64_t get_number_of_pivots_per_node() {
+  /*uint64_t get_number_of_pivots_per_node() {
    
 	  // Calculate B^(Epsilon)
 	  float B_eps = pow(max_node_size, epsilon);
@@ -925,20 +952,21 @@ public:
 	  }
 	  
 	  return num_pivots;
-  }
+  }*/
   
-  // Get the configured epsilon value
+  /*// Get the configured epsilon value
   float get_epsilon() const {
     return epsilon;
-  }
+  }*/
 
   // Get the configured epsilon value
-  void set_epsilon(float e) {
+ /* void set_epsilon(float e) {
     epsilon = e;
     max_pivots = get_number_of_pivots_per_node(); 
     max_messages = max_node_size - max_pivots; 
 
   }
+*/
 
   // Insert the specified message and handle a split of the root if it
   // occurs.
