@@ -530,7 +530,6 @@ private:
         {
           node_pointer merged_node = merge(bet, beginit, endit);
           
-	  // erase e
 	  for (auto tmp = beginit; tmp != endit; ++tmp)
           {
             tmp->second.child->elements.clear();
