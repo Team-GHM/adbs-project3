@@ -244,32 +244,35 @@ private:
 
     // constructors
     parent_info(void)
-        : parent(), parent_size(0)
+        : parent_ptr(), parent_size(0), is_root(true)
     {
     }
 
-    parent_info(node_pointer parent, uint64_t parent_size)
-        : parent(parent),
-          parent_size(parent_size)
+    parent_info(node_pointer parent, uint64_t parent_size, bool root)
+        : parent_ptr(parent),
+          parent_size(parent_size),
+	  is_root(root)
     {
     }    
 	 
     // Serialization/deserialization
     void _serialize(std::iostream &fs, serialization_context &context) {
-        serialize(fs, context, parent);
+        serialize(fs, context, parent_ptr);
         fs << " ";
         serialize(fs, context, parent_size);
+	// TODO: add serialize for is_root
     }
 
     void _deserialize(std::iostream &fs, serialization_context &context) { 
-        deserialize(fs, context, parent);
+        deserialize(fs, context, parent_ptr);
         deserialize(fs, context, parent_size);
+	//TODO: add deserialize for is_root
     }
 
     // member vars
-    node_pointer parent;
+    node_pointer parent_ptr;
     uint64_t parent_size;
-     
+    bool is_root;
   };
   ////////////////// ------ //
  
@@ -349,6 +352,11 @@ private:
       max_messages = max_node_size - max_pivots;
       stat_tracker = window_stat_tracker();
     }
+
+    /*node_pointer get_pointer_to_this(){
+
+
+    }*/
 
     uint64_t calculate_max_pivots()
     {
@@ -454,6 +462,8 @@ private:
 	return parent;
     }
 
+
+
     // Return iterator pointing to the first element with mk >= k.
     // (Same const/non-const templating trick as above)
     template <class OUT, class IN>
@@ -545,8 +555,10 @@ private:
       // UPDATED ASSERT doesn't check against max size of node.
       // This checks that at least the pivots or messages are outside of their bounds.
       assert((pivots.size() >= max_pivots) || (elements.size() >= max_messages));
+      
       // Create as many new leaves as pivots will allow and divide the elements equally between them.
       int num_new_leaves = max_pivots;
+      
       // Make sure nothing here is left after adding to leaves
       int things_per_new_leaf =
           (pivots.size() + elements.size() + num_new_leaves - 1) / num_new_leaves;
@@ -555,6 +567,7 @@ private:
       auto pivot_idx = pivots.begin();
       auto elt_idx = elements.begin();
       int things_moved = 0;
+      
       // Iterate through number of new leaves to move items from this node in
       // Each leaf is a new node allocated and added to result pivot_map
       for (int i = 0; i < num_new_leaves; i++)
@@ -562,19 +575,54 @@ private:
         if (pivot_idx == pivots.end() && elt_idx == elements.end())
           // Moved all pivots and elements to new leaves
           break;
+
+
+
+
+
         // Allocate a new node
         auto e = epsilon;
         auto l = node_level + 1;
 
-	std::cout << "creating new node with same parent..."<< std::endl;
-	parent_info parent = parent;
+	std::cout << "creating new node with this as a parent parent..."<< std::endl;
+
+	// allocate new node
+        node_pointer new_node = bet.ss->allocate(new node(e, l));
+		
+
+
+
+        // TODO: use the child of current node, get is parent.parent_ptr, and that points to this node, to use for new children.
+        //      if there is no children, then its root, use this parent.ptr
+        //
+        bool hasChildren = false;
+        parent_info newNode_newPar;
+        for (auto &pivot : pivots) {
+		// TODO: get parent
+		parent_info existingPar = pivot.second.child->parent;
+
+		newNode_newPar = parent_info(existingPar.parent_ptr, new_node->elements.size() + new_node->pivots.size(), false);
+                hasChildren = true;
+                break;
+        }
+        if (!hasChildren){// root on first split or leaf
+		newNode_newPar = parent_info(parent.parent_ptr, new_node->elements.size() + new_node->pivots.size(), false);
+        }
+
+
+
+
+        // Update the current parent_info to be correctly sized
+        parent_info curNode_newPar = parent_info(parent.parent_ptr, elements.size() + pivots.size(), parent.is_root);
+  	parent = curNode_newPar;
 	
-	// TODO: create new parent info with correct size for new_node
-	
-	// TODO: update the current parent_info to be correctly sized
-	
-	node_pointer new_node = bet.ss->allocate(new node(e, l, parent));
-        
+        // TODO: create new parent info with correct size for new_node
+        //parent_info newNode_newPar = parent_info(TODO, new_node->elements.size() + new_node->pivots.size(), false);	
+	new_node->parent = newNode_newPar;
+
+
+	//new_node->parent = parent; // TODO: temp/remove
+
 	// If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
         // Else if looping through elements...
@@ -1004,7 +1052,7 @@ public:
   {
     // Set parent to itself on root
     root = ss->allocate(new node(0.4, 0));
-    parent_info parent = parent_info(root, root->pivots.size() + root->elements.size());
+    parent_info parent = parent_info(root, root->pivots.size() + root->elements.size(), true);
     root->parent = parent;
   }
 
@@ -1020,16 +1068,18 @@ public:
     {	
       auto e = root->epsilon;
       auto l = root->node_level + 1;
-      
+     
+      // alocate new root 
       root = ss->allocate(new node(e, l));
     
       // Set parent to itself on root
-      parent_info parent = parent_info(root, root->pivots.size() + root->elements.size());
+      parent_info parent = parent_info(root, root->pivots.size() + root->elements.size(), true);
       root->parent = parent;
         
+      // update new root's pivots
       root->pivots = new_nodes;
     
-      // update the pivots to have the root as their parents
+      // update the pivots to have the root as their parent
       for (auto &pivot : root->pivots){
 		pivot.second.child->parent = parent;
       }
