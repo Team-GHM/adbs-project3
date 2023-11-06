@@ -319,7 +319,7 @@ private:
     }
 
     // constructor for root with no pivot
-    /*node(float e, uint64_t level)
+    node(float e, uint64_t level)
     : max_node_size(64)
     , min_node_size(64 / 4)
     , min_flush_size(64 / 16)
@@ -332,7 +332,7 @@ private:
       max_messages = max_node_size - max_pivots;
       stat_tracker = window_stat_tracker();
     }
-    */
+    
 
 
     node(float e, uint64_t level, parent_info parent)
@@ -994,9 +994,10 @@ public:
         starting_epsilon(0.4),
         tunable_epsilon_level(0)
   {
-    parent_info parent;
-    root = ss->allocate(new node(0.4, 0, parent));
-    //root = ss->allocate(new node(0.4, 0));
+    // Set parent to itself on root
+    root = ss->allocate(new node(0.4, 0));
+    parent_info parent = parent_info(root, root->pivots.size() + root->elements.size());
+    root->parent = parent;
   }
 
 
@@ -1008,19 +1009,16 @@ public:
     tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
     pivot_map new_nodes = root->flush(*this, tmp);
     if (new_nodes.size() > 0)
-    {
-	
-      parent_info parent;
-      /*for (auto &pivot : new_nodes){
-	      parent = pivot.second.child->get_parent();
-	      break;
-      }*/    
-
+    {	
       auto e = root->epsilon;
       auto l = root->node_level + 1;
       
-      root = ss->allocate(new node(e, l, parent));
-      //root = ss->allocate(new node(e, l));
+      root = ss->allocate(new node(e, l));
+    
+      // Set parent to itself on root
+      parent_info parent = parent_info(root, root->pivots.size() + root->elements.size());
+      root->parent = parent;
+        
       root->pivots = new_nodes;
     }
 
