@@ -41,7 +41,6 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
         if (iss >> key >> value) {
             // Update b with the key and value
             b.update(key, value);
-            printf("Updated key %ld with value: %s\n", key, value.c_str());
             queryKeys.push_back(key); // Add the key to the queryKeys vector
         }
     }
@@ -69,12 +68,10 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
             timer_start(timers);
             std::string result = b.query(t);
             timer_stop(timers);
-            printf("Query for key %ld returned value: %s\n", t, result.c_str());
             //double timer_us = timers / 1000;
             double throughput2 = timers;
             times.push_back(i + 1);
             throughputs.push_back(throughput2);
-            printf("nops_query: %lu\n", timers);
             nops_query--;
             }
         }
@@ -86,9 +83,7 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
             timer_start(timers2);
             b.update(t, value);
             timer_stop(timers2);
-            printf("Updated key %ld with value: %s\n", t, value.c_str());
             nops_update--;
-            printf("nops_query: %lu\n", timers2);
             //double timer_us = timers2 / 1000000;
             double throughput3 = timers2;
             times.push_back(i + 1);

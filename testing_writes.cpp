@@ -34,40 +34,24 @@ void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
     std::string line;
     std::vector<uint64_t> queryKeys; // Store the keys to be queried
 
-    /*while (std::getline(file, line)) {
+    /* while (std::getline(file, line)) {
         uint64_t key;
         std::string value;
         std::istringstream iss(line);
         if (iss >> key >> value) {
+            b.update(key, value);
             queryKeys.push_back(key); // Add the key to the queryKeys vector
         }
     }*/
     srand(random_seed);
 
     std::vector<std::pair<uint64_t, double>> throughputData;  // Stores (iteration, throughput) pairs
-    /*uint64_t totalIterations = 100;  // Total number of iterations
-
-    for (uint64_t j = 0; j < totalIterations; j++)
-    {
-        uint64_t timer = 0;
-        timer_start(timer);
-        for (uint64_t i = 0; i < nops / totalIterations; i++)
-        {
-            uint64_t t = rand() % number_of_distinct_keys;
-            b.update(t, std::to_string(t) + ":");
-        }
-        timer_stop(timer);
-        double throughput = (1.0 * (nops / totalIterations) * 1000000) / timer;
-        throughputData.push_back(std::make_pair(j, throughput));
-    }*/
 
     srand(random_seed);
     uint64_t overall_timer = 0;
     timer_start(overall_timer);
     uint64_t nops_query = 0.3 * nops;  // 30% of nops
-
-    uint64_t nops_update = 0.1 * nops;  // 70% of nops
-    printf("nops: %lu\n", nops_update);
+    uint64_t nops_update = 0.7 * nops;  // 70% of nops
 
     file.clear();
     file.seekg(0);
@@ -79,10 +63,10 @@ void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
         uint64_t timers = 0;
         uint64_t timers2 = 0;
 
-        if (nops_update > 0)
+      if (nops_update > 0)
         {
             // Perform an update
-            while (std::getline(file, line)) {
+            while (nops_update > 0 && std::getline(file, line)) {
                 uint64_t key;
                 std::string value;
                 std::istringstream iss(line);
@@ -91,22 +75,18 @@ void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
                     // Update b with the key and value
                     b.update(key, value);
                     timer_stop(timers2);
-                    //printf("Updated key %ld with value: %s\n", key, value.c_str());
-                    queryKeys.push_back(key); 
-                    printf("Updated key %ld with value: %s\n", key, value.c_str());
                     // Add the key to the queryKeys vector
+                    queryKeys.push_back(key); 
                     nops_update--;
-                    printf("nops_update: %lu\n", nops_update);
                     //double timer_us = timers2 / 1000000;
                     double throughput3 = timers2;
                     times.push_back(i + 1);
                     throughputs.push_back(throughput3);
                 }
             }
-        }
+        } 
         else if (nops_query > 0)
         {
-            printf("Test");
             // Perform a query
             if (!queryKeys.empty()) {
             uint64_t t = queryKeys.back();
@@ -114,12 +94,10 @@ void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
             timer_start(timers);
             std::string result = b.query(t);
             timer_stop(timers);
-            printf("Query for key %ld returned value: %s\n", t, result.c_str());
             //double timer_us = timers / 1000;
             double throughput2 = timers;
             times.push_back(i + 1);
             throughputs.push_back(throughput2);
-            printf("nops_query: %lu\n", timers);
             nops_query--;
             }
         }
