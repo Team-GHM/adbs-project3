@@ -58,7 +58,7 @@
 #include <cmath>
 #include <vector>
 #include <cassert>
-
+#include <optional>
 
 #include "swap_space.hpp"
 #include "backing_store.hpp"
@@ -203,6 +203,8 @@ private:
   class node;
   // We let a swap_space handle all the I/O.
   typedef typename swap_space::pointer<node> node_pointer;
+  
+  
   class child_info : public serializable
   {
   public:
@@ -239,32 +241,118 @@ private:
   class parent_info : public serializable
   {
   public:
+
     parent_info(void)
-      : parent(), parent_size(0)
+        : parent(), parent_size(0)
     {
     }
 
-    parent_info(node_pointer parent, uint64_t parent_size)
-      : parent(parent),
-	parent_size(parent_size)
-    {}
 
+    parent_info(node_pointer parent, uint64_t parent_size)
+        : parent(parent),
+          parent_size(parent_size)
+    {
+    }    
+	  
+    /*
+    parent_info(void)
+      : parent_size(0)
+    {
+      parentUnion par;
+      par.root_val = 0;
+      parent = par;
+      pointing = false;
+    }
+
+    parent_info(node_pointer par, uint64_t parent_size)
+      : parent_size(parent_size)
+    {
+      parentUnion parU;
+      par.node_ptr = par;
+      parent = parU;
+      pointing = true;
+    }
+*/
+    /*
+    parent_info(node_pointer parent, uint64_t parent_size)
+      : parent_type(NodeType),
+        parent_size(parent_size)
+    {
+      parent.node_ptr = parent;
+    }
+
+    parent_info(int parent, uint64_t parent_size)
+      : parent_type(IntType),
+        parent_size(parent_size)
+    {
+      parent.int_value = parent;
+    }
+
+      */
+    
 
     void _serialize(std::iostream &fs, serialization_context &context) {
-      serialize(fs, context, parent);
-      fs << " ";
-      serialize(fs, context, parent_size);
+  
+        serialize(fs, context, parent);
+        fs << " ";
+        serialize(fs, context, parent_size);
+/*
+      if(pointing){
+        serialize(fs, context, parent.node_ptr);
+        fs << " ";
+        serialize(fs, context, parent_size);
+      }
+      else {
+	serialize(fs, context, parent.root_val);
+        fs << " ";
+        serialize(fs, context, parent_size);
+      }*/
     }
 
     void _deserialize(std::iostream &fs, serialization_context &context) {
-      deserialize(fs, context, parent);
-      deserialize(fs, context, parent_size);
+     
+        deserialize(fs, context, parent);
+        deserialize(fs, context, parent_size);
+ /*	    
+	  if(pointing){
+	    deserialize(fs, context, parent.node_ptr);
+ 	    deserialize(fs, context, parent_size);
+      }
+      else {
+            deserialize(fs, context, parent.root_val);
+            deserialize(fs, context, parent_size);
+      }*/
     }
 
+
     node_pointer parent;
+    /*
+    union parentUnion {
+	node_pointer node_ptr;
+	int root_val;
+    };
+    parentUnion parent;
+*/
     uint64_t parent_size;
+    
+  //  bool pointing;
+    
+    
+    
+    
+    /*
+    enum ParentType { NodeType, IntType };
+    ParentType parent_type;
+
+    union {
+      node_pointer node_ptr;
+      int int_value;
+    } parent;
+    */
   };
   ////////////////// ------ //
+ 
+
 
   typedef typename std::map<Key, child_info> pivot_map;
   typedef typename std::map<MessageKey<Key>, Message<Value>> message_map;
@@ -275,6 +363,7 @@ private:
     // Init class for sliding window statistic tracker on the Tree
     // with default value for W value (size of sliding window)
     window_stat_tracker stat_tracker;
+  
   public:
     
     // Child pointers
@@ -984,7 +1073,9 @@ public:
         starting_epsilon(0.4),
         tunable_epsilon_level(0)
   {
-    root = ss->allocate(new node(0.4, 0));
+    //root = ss->allocate(new node(0.4, 0));
+    //parent_info parent = parent_info(0, 0);
+    root = ss->allocate(new node(0.4, 0));//, parent));
   }
 
 
@@ -1000,7 +1091,8 @@ public:
       auto e = root->epsilon;
       auto l = root->node_level + 1;
       
-      root = ss->allocate(new node(e, l));
+      //parent_info parent = parent_info(0, 0);
+      root = ss->allocate(new node(e, l));//, parent));
       root->pivots = new_nodes;
     }
 
