@@ -984,7 +984,7 @@ public:
 	return root->pivot_count_recursive(*this);
   }
   void print_message_count_in_nodes(){
- 	message_count_recursive(*this);
+ 	root->message_count_recursive(*this);
   }
 
   // Insert the specified message and handle a split of the root if it
@@ -1001,7 +1001,6 @@ public:
       root = ss->allocate(new node(e, l));
       root->pivots = new_nodes;
     }
-
   }
 
   void insert(Key k, Value v)
