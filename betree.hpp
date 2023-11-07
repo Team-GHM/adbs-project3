@@ -564,7 +564,7 @@ private:
       auto elt_idx = elements.begin();
       int things_moved = 0;
       
-      std::cout << "num_new_leaves: " << std::to_string(num_new_leaves) << std::endl;
+      //std::cout << "num_new_leaves: " << std::to_string(num_new_leaves) << std::endl;
       // Iterate through number of new leaves to move items from this node in
       // Each leaf is a new node allocated and added to result pivot_map
       for (int i = 0; i < num_new_leaves; i++)
@@ -582,34 +582,28 @@ private:
 	// set node_id for new node (which is the target int of the node_pointer)
 	int64_t new_node_id = new_node.get_target();
 	new_node->node_id = new_node_id;
-	std::cout << "New node id: " << std::to_string(new_node_id) << std::endl;
 	
-
 	bet.pointer_map[new_node_id] = new_node; // save new node_pointer for assigning parents
 
-	parent_info newNode_newPar;
-
 	// if this node is the root, its points to itself, so get that pointer for new children
-	if(parent.no_parent){
-
-	   std::cout << "no_parent ture, takin parent ptr from root on id: " << std::to_string(node_id) << std::endl; 
-		
-	    parent_info newNode_newPar;
+	if(parent.no_parent){		
    	    node_pointer points_to_root = parent.parent_ptr;
-            newNode_newPar = parent_info(points_to_root, false);
+            parent_info newNode_newPar = parent_info(points_to_root, false);
 	    new_node->parent = newNode_newPar;
 	}
 	else {
-	
-	   std::cout << "no_parent false, making node_pointer with bracket init" << std::endl;
- 	   parent_info newNode_newPar;
-	   // node_pointer to this		
-  	   node_pointer points_to_this = {bet.ss, this};
-	    
-	   newNode_newPar = parent_info(points_to_this, false);
+	 
+	if (bet.pointer_map.count(node_id) > 0){
+	   node_pointer points_to_this = bet.pointer_map[node_id];
+
+	   parent_info newNode_newPar = parent_info(points_to_this, false);
 	   new_node->parent = newNode_newPar;
+	   std::cout << "found node_pointer at node_id" << std::endl;
+	}
+	else {
+		std::cout << "no existering thing at node_id" << std::endl;
+	}
 	}	
-	std::cout << "after made new_node" << std::endl;
 
 	// If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
@@ -622,7 +616,7 @@ private:
         while (things_moved < (i + 1) * things_per_new_leaf &&
                (pivot_idx != pivots.end() || elt_idx != elements.end()))
         {
-		std::cout << "moving things to new leaf ... " << std::endl;
+		//std::cout << "moving things to new leaf ... " << std::endl;
           // Move pivots
           if (pivot_idx != pivots.end())
           {
@@ -660,7 +654,7 @@ private:
       assert(elt_idx == elements.end());
       pivots.clear();
       elements.clear();
-      std::cout << "returning from split ..." << std::endl;
+      //std::cout << "returning from split ..." << std::endl;
       return result;
     }
 

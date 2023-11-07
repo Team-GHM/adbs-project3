@@ -181,6 +181,39 @@ public:
 
   template<class Referent> class pointer;
 
+
+/*
+  pointer get_pointer_by_ID(uint64_t tgt) {
+      if (ss->objects.count(tgt) > 0){
+	return ss->objects[tgt];
+      }
+      else {
+	return pointer();
+      }
+  }
+*/
+
+/*
+
+  /// public method to return the pointer with the target targ
+  template<class Referent>
+  pointer<Referent> get_pointer_by_ID(int64_t tgt) {
+	
+	for (auto it = objects.begin(); it != objects.end(); ++it) {
+		uint64_t cast = static_cast<uint64_t>(tgt);		
+		if (it->second->id == cast) {
+		
+			object obj = objects[it->second->id];
+
+			return objects[it->second->id];
+			//return pointer<Referent>(it->second->id);
+		}
+	}
+	return pointer<Referent>();
+  }	  
+*/
+
+
   //Given a heap pointer, construct a ss object around it.
   //this is used to register nodes in the ss.
   template<class Referent>
