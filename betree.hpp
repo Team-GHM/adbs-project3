@@ -244,35 +244,31 @@ private:
 
     // constructors
     parent_info(void)
-        : parent_ptr(), parent_size(0), is_root(false)
+        : parent_ptr(), no_parent(false)
     {
     }
 
-    parent_info(node_pointer parent, uint64_t parent_size, bool root)
+    parent_info(node_pointer parent, bool root)
         : parent_ptr(parent),
-          parent_size(parent_size),
-	  is_root(root)
+	  no_parent(root)
     {
     }    
 	 
     // Serialization/deserialization
     void _serialize(std::iostream &fs, serialization_context &context) {
         serialize(fs, context, parent_ptr);
-        fs << " ";
-        serialize(fs, context, parent_size);
-	// TODO: add serialize for is_root
+        //fs << " ";
+	// TODO: add serialize for no_parent
     }
 
     void _deserialize(std::iostream &fs, serialization_context &context) { 
         deserialize(fs, context, parent_ptr);
-        deserialize(fs, context, parent_size);
-	//TODO: add deserialize for is_root
+	//TODO: add deserialize for no_parent
     }
 
     // member vars
     node_pointer parent_ptr;
-    uint64_t parent_size;
-    bool is_root; // this is only true if this parent_info belongs to the root, and parent_ptr points to itself
+    bool no_parent; // this is only true if this parent_info belongs to the root, and parent_ptr points to itself
   };
   ////////////////// ------ //
  
@@ -305,6 +301,7 @@ private:
     int operation_count;
     int ops_before_epsilon_update;
     parent_info parent; // parent pointer info
+    int node_id;
 
     // TODO Base these defaults off of max pivots or max messages instead.
     node()
@@ -319,10 +316,11 @@ private:
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
       stat_tracker = window_stat_tracker();  
+      node_id = -1;
     }
 
     // constructor for root with no pivot
-    node(float e, uint64_t level)
+    node(float e, uint64_t level, int id)
     : max_node_size(64)
     , min_node_size(64 / 4)
     , min_flush_size(64 / 16)
@@ -330,6 +328,7 @@ private:
     , node_level(level)
     , operation_count(0)
     , ops_before_epsilon_update(100) // TODO: tune
+    , node_id(id)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -337,7 +336,7 @@ private:
     }
     
 
-
+/*
     node(float e, uint64_t level, parent_info parent)
     : max_node_size(64)
     , min_node_size(64 / 4)
@@ -352,11 +351,7 @@ private:
       max_messages = max_node_size - max_pivots;
       stat_tracker = window_stat_tracker();
     }
-
-    /*node_pointer get_pointer_to_this(){
-
-
-    }*/
+*/
 
     uint64_t calculate_max_pivots()
     {
@@ -579,53 +574,37 @@ private:
         // Allocate a new node
         auto e = epsilon;
         auto l = node_level + 1;
-        node_pointer new_node = bet.ss->allocate(new node(e, l));
-		
-
-	// 3 cases: root (before children), internal-node, or leaf
-	// if (hasChildren) -> 
+        node_pointer new_node = bet.ss->allocate(new node(e, l, bet.glob_node_id++));
 
 
+	parent_info newNode_newPar;
 
-
-        // TODO: use the child of current node, get is parent.parent_ptr, and that points to this node, to use for new children.
-        //      if there is no children, then its root, use this parent.ptr
-        //
-        bool hasChildren = false;
-        parent_info newNode_newPar;
-	parent_info existingPar;
-
-	// if this node has children, get a node_pointer to itself for split children
-        for (auto &pivot : pivots) {
-		existingPar.parent_ptr = pivot.second.child->parent.parent_ptr;
-                hasChildren = true;
-                break;
-        }
-        if (!hasChildren){// root on first split or leaf
-		
-		if (parent.is_root) {// the root's parent is itself
-			
-			// (root is the parent, init size, false for not root) 
-			newNode_newPar = parent_info(parent.parent_ptr, new_node->elements.size() + new_node->pivots.size(), false);
-		}
-		else{
-		newNode_newPar = parent_info(parent.parent_ptr, new_node->elements.size() + new_node->pivots.size(), false);	// TODO:  temp change 
-		
-		}
-		//newNode_newPar = parent_info(parent.parent_ptr, new_node->elements.size() + new_node->pivots.size(), false);
-        }
-
-
-
-
-        // Update the current parent_info to be correctly sized
-        //parent_info curNode_newPar = parent_info(parent.parent_ptr, elements.size() + pivots.size(), parent.is_root);
-  	//parent = curNode_newPar;
+	// if this node is the root, its points to itself, so get that pointer for new children
+	if(parent.no_parent){
+	    node_pointer points_to_root = parent.parent_ptr;
+            newNode_newPar = parent_info(points_to_root, false);
+	}
+	else {
+            // TODO: create a parent_info for new node that points to this current node (the methods called on) and is false for is_root
 	
-        // TODO: create new parent info with correct size for new_node
-        //parent_info newNode_newPar = parent_info(TODO, new_node->elements.size() + new_node->pivots.size(), false);	
-	new_node->parent = newNode_newPar;
+ 	    
+	    node_pointer points_to_root = parent.parent_ptr;
+	    pivot_map siblings = points_to_root->pivots;
+	  
+	    int cur_id = node_id;
 
+	     // Find the right  sibling that is this child
+	    for (auto &sibling : siblings) {
+		if (sibling.second.child->node_id == cur_id) {
+			node_pointer points_to_this = sibling.second.child;
+			newNode_newPar = parent_info(points_to_this, false);
+		}
+	    } 
+
+	    //node_pointer current_node = *this;
+	    newNode_newPar = parent_info(parent.parent_ptr, false); // TODO: change to be right
+	}	
+	new_node->parent = newNode_newPar;
 
 
 
@@ -670,7 +649,6 @@ private:
         }
       }
 
-      // TODO: update parent_info elements/size
       for (auto it = result.begin(); it != result.end(); ++it)
         it->second.child_size = it->second.child->elements.size() +
                                 it->second.child->pivots.size();
@@ -693,8 +671,9 @@ private:
       // In the case of merge_small_children, the merged node(s) stay at the same level. 
       auto e = epsilon;
       auto l = node_level;
-      parent_info parent = this.parent;
-      node_pointer new_node = bet.ss->allocate(new node(e, l, parent));
+      parent_info this_parent = this.parent;
+      node_pointer new_node = bet.ss->allocate(new node(e, l, bet.glob_node_id++));
+      new_node.parent = this_parent;
       for (auto it = begin; it != end; ++it)
       {
         new_node->elements.insert(it->second.child->elements.begin(),
@@ -707,6 +686,7 @@ private:
 
     void merge_small_children(betree &bet)
     {
+	// TODO: if going to use this method, update to use parent_info
       if (is_leaf())
         return;
 
@@ -1046,8 +1026,12 @@ private:
   Value default_value;
   float const starting_epsilon;
   uint64_t tunable_epsilon_level;
-  
+
 public:
+
+  int glob_node_id; // private var for coutning nodes
+
+
   betree(swap_space *sspace,
          uint64_t maxnodesize = DEFAULT_MAX_NODE_SIZE,
          uint64_t minnodesize = DEFAULT_MAX_NODE_SIZE / 4,
@@ -1057,11 +1041,12 @@ public:
         max_node_size(maxnodesize),
         min_node_size(minnodesize),
         starting_epsilon(0.4),
-        tunable_epsilon_level(0)
+        tunable_epsilon_level(0),
+	glob_node_id(1)
   {
     // Set parent to itself on root
-    root = ss->allocate(new node(0.4, 0));
-    parent_info parent = parent_info(root, root->pivots.size() + root->elements.size(), true);
+    root = ss->allocate(new node(0.4, 0, glob_node_id++));
+    parent_info parent = parent_info(root, true);
     root->parent = parent;
   }
 
@@ -1077,17 +1062,16 @@ public:
     {	
       auto e = root->epsilon;
       auto l = root->node_level + 1;   
-      root = ss->allocate(new node(e, l));
+      root = ss->allocate(new node(e, l, glob_node_id++));
      
       // update new root's pivots
       root->pivots = new_nodes;
 
       // make sure root's parent_info is up-to-date
-      parent_info root_update = parent_info(root, root->pivots.size() + root->elements.size(), true);
+      parent_info root_update = parent_info(root, true);
       root->parent = root_update;
     
     }
-
   }
 
   void insert(Key k, Value v)
@@ -1133,6 +1117,7 @@ public:
     {
     }
   }
+
 
   class iterator
   {
