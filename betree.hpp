@@ -257,13 +257,13 @@ private:
     // Serialization/deserialization
     void _serialize(std::iostream &fs, serialization_context &context) {
         serialize(fs, context, parent_ptr);
-        //fs << " ";
-	// TODO: add serialize for no_parent
+        fs << " ";
+    	serialize(fs, context, no_parent);
     }
 
     void _deserialize(std::iostream &fs, serialization_context &context) { 
         deserialize(fs, context, parent_ptr);
-	//TODO: add deserialize for no_parent
+	deserialize(fs, context, no_parent);
     }
 
     // member vars
@@ -300,8 +300,9 @@ private:
     uint64_t node_level;
     int operation_count;
     int ops_before_epsilon_update;
+    
     parent_info parent; // parent pointer info
-    int node_id;
+    uint64_t node_id;
 
     // TODO Base these defaults off of max pivots or max messages instead.
     node()
@@ -563,6 +564,7 @@ private:
       auto elt_idx = elements.begin();
       int things_moved = 0;
       
+      std::cout << "num_new_leaves: " << std::to_string(num_new_leaves) << std::endl;
       // Iterate through number of new leaves to move items from this node in
       // Each leaf is a new node allocated and added to result pivot_map
       for (int i = 0; i < num_new_leaves; i++)
@@ -581,32 +583,44 @@ private:
 
 	// if this node is the root, its points to itself, so get that pointer for new children
 	if(parent.no_parent){
-	    node_pointer points_to_root = parent.parent_ptr;
+
+		std::cout << "no parentt, takin parent ptr from root" << std::endl; 
+
+   	    node_pointer points_to_root = parent.parent_ptr;
             newNode_newPar = parent_info(points_to_root, false);
+	    new_node->parent = newNode_newPar;
 	}
 	else {
             // TODO: create a parent_info for new node that points to this current node (the methods called on) and is false for is_root
 	
  	    
-	    node_pointer points_to_root = parent.parent_ptr;
-	    pivot_map siblings = points_to_root->pivots;
+	   // node_pointer points_to_root = parent.parent_ptr;
+	    //pivot_map siblings = points_to_root->pivots;
 	  
-	    int cur_id = node_id;
+	    auto cur_id = node_id;
 
+	    bool foundS = false;
 	     // Find the right  sibling that is this child
-	    for (auto &sibling : siblings) {
+	    for (auto &sibling : parent.parent_ptr->pivots) {
+		    std::cout << "sibling id: " << std::to_string(sibling.second.child->node_id) << std::endl;    
 		if (sibling.second.child->node_id == cur_id) {
 			node_pointer points_to_this = sibling.second.child;
 			newNode_newPar = parent_info(points_to_this, false);
-		}
-	    } 
+			foundS = true;
+		}	
+	    }
+
+
+	    if (!foundS) {
+		std::cout << "didn't find sibling for id: " << std::to_string(cur_id) << std::endl;
+	    }
+	//    else {
+	//	std::cout << "foudn siblign!" << std::endl;
+	//    }
 
 	    //node_pointer current_node = *this;
 	    newNode_newPar = parent_info(parent.parent_ptr, false); // TODO: change to be right
 	}	
-	new_node->parent = newNode_newPar;
-
-
 
 	// If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
@@ -614,7 +628,7 @@ private:
         // result[elt_idx->first.key] = child_info(new_node, 0 + 0)
         result[pivot_idx != pivots.end() ? pivot_idx->first : elt_idx->first.key] = child_info(new_node, new_node->elements.size() + new_node->pivots.size());
 
-	std::cout << "after made new_node" << std::endl;
+	//std::cout << "after made new_node" << std::endl;
 
         // While there are still things to move to this leaf
         while (things_moved < (i + 1) * things_per_new_leaf &&
@@ -999,6 +1013,8 @@ private:
       serialize(fs, context, node_level);
       fs << "parent:" << std::endl;
       serialize(fs, context, parent);
+      fs << "node_id:" << std::endl;
+      serialize(fs, context, node_id);
     }
 
     void _deserialize(std::iostream &fs, serialization_context &context)
@@ -1014,6 +1030,8 @@ private:
       deserialize(fs, context, node_level);
       fs >> dummy;
       deserialize(fs, context, parent);
+      fs >> dummy;
+      deserialize(fs, context, node_id);
     }
   };
 

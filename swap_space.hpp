@@ -111,6 +111,10 @@ void deserialize(std::iostream &fs, serialization_context &context, float &x);
 void serialize(std::iostream &fs, serialization_context &context, std::string x);
 void deserialize(std::iostream &fs, serialization_context &context, std::string &x);
 
+void serialize(std::iostream &fs, serialization_context &context, bool x);
+void deserialize(std::iostream &fs, serialization_context &context, bool &x);
+
+
 template<class Key, class Value> void serialize(std::iostream &fs,
 						serialization_context &context,
 						std::map<Key, Value> &mp)
@@ -284,7 +288,7 @@ public:
       ss(NULL),
       target(0)
     {
-	   std::cout << "Void constructing...." << std::endl;
+	//	   std::cout << "Void constructing...." << std::endl;
     }
 
     
@@ -297,7 +301,7 @@ public:
       ss = other.ss;
       target = other.target;
       if (target > 0) {
-	std::cout << "target is > 0 " << std::endl;
+	//std::cout << "target is > 0 " << std::endl;
 	assert(ss->objects.count(target) > 0);
 	ss->objects[target]->refcount++;
       }

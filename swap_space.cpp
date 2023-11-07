@@ -61,6 +61,23 @@ void deserialize(std::iostream &fs, serialization_context &context, std::string 
   delete buf;
 }
 
+
+
+void serialize(std::iostream &fs, serialization_context &context, bool x)
+{
+  fs << x << " ";
+  assert(fs.good());
+}
+
+void deserialize(std::iostream &fs, serialization_context &context, bool &x)
+{
+  fs >> x;
+  assert(fs.good());
+}
+
+
+
+
 bool swap_space::cmp_by_last_access(swap_space::object *a, swap_space::object *b) {
   return a->last_access < b->last_access;
 }
