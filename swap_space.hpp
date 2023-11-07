@@ -413,7 +413,12 @@ public:
       // stays the same.
     }
 
-  private:
+    // Gets the tartet number of this pointer
+    int64_t get_target() {
+	return target;
+    }
+
+  //private:
     swap_space *ss;
     uint64_t target;
 
