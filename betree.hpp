@@ -337,7 +337,7 @@ private:
     }
     
 
-/*
+/* // not using any more, i've just been assigning parent after node is made
     node(float e, uint64_t level, parent_info parent)
     : max_node_size(64)
     , min_node_size(64 / 4)
@@ -576,7 +576,9 @@ private:
         // Allocate a new node
         auto e = epsilon;
         auto l = node_level + 1;
-        node_pointer new_node = bet.ss->allocate(new node(e, l, bet.glob_node_id++));
+        int64_t new_node_id = bet.glob_node_id++;
+	std::cout << "nwe node id: " << std::to_string(new_node_id) << std::endl;
+	node_pointer new_node = bet.ss->allocate(new node(e, l, new_node_id));
 
 
 	parent_info newNode_newPar;
@@ -584,7 +586,7 @@ private:
 	// if this node is the root, its points to itself, so get that pointer for new children
 	if(parent.no_parent){
 
-		std::cout << "no parentt, takin parent ptr from root" << std::endl; 
+	   std::cout << "no parentt, takin parent ptr from root on id: " << std::to_string(node_id) << std::endl; 
 
    	    node_pointer points_to_root = parent.parent_ptr;
             newNode_newPar = parent_info(points_to_root, false);
@@ -593,9 +595,6 @@ private:
 	else {
             // TODO: create a parent_info for new node that points to this current node (the methods called on) and is false for is_root
 	
- 	    
-	   // node_pointer points_to_root = parent.parent_ptr;
-	    //pivot_map siblings = points_to_root->pivots;
 	  
 	    auto cur_id = node_id;
 
@@ -614,11 +613,7 @@ private:
 	    if (!foundS) {
 		std::cout << "didn't find sibling for id: " << std::to_string(cur_id) << std::endl;
 	    }
-	//    else {
-	//	std::cout << "foudn siblign!" << std::endl;
-	//    }
 
-	    //node_pointer current_node = *this;
 	    newNode_newPar = parent_info(parent.parent_ptr, false); // TODO: change to be right
 	}	
 
@@ -1063,6 +1058,8 @@ public:
 	glob_node_id(1)
   {
     // Set parent to itself on root
+    
+    //int64_t new_node_id = glob_node_id++;
     root = ss->allocate(new node(0.4, 0, glob_node_id++));
     parent_info parent = parent_info(root, true);
     root->parent = parent;
@@ -1085,9 +1082,12 @@ public:
       // update new root's pivots
       root->pivots = new_nodes;
 
+      std::cout << "root id on handle root split: " << std::to_string(root->node_id) << std::endl;
+      std::cout << "node_level on handle root split: " << std::to_string(root->node_level) << std::endl;
+      
+      
       // make sure root's parent_info is up-to-date
-      parent_info root_update = parent_info(root, true);
-      root->parent = root_update;
+      root->parent = parent_info(root, true);
     
     }
   }
