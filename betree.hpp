@@ -59,6 +59,7 @@
 #include <vector>
 #include <cassert>
 #include <optional>
+#include <unordered_map>
 
 #include "swap_space.hpp"
 #include "backing_store.hpp"
@@ -1043,7 +1044,7 @@ private:
 public:
 
   int glob_node_id; // private var for coutning nodes
-
+  std::unordered_map<uint64_t, node_pointer> pointer_map;
 
   betree(swap_space *sspace,
          uint64_t maxnodesize = DEFAULT_MAX_NODE_SIZE,
@@ -1085,7 +1086,14 @@ public:
       std::cout << "root id on handle root split: " << std::to_string(root->node_id) << std::endl;
       std::cout << "node_level on handle root split: " << std::to_string(root->node_level) << std::endl;
       
-      
+      // save 
+      for (auto &node : new_nodes) {
+	  int64_t nID = node.second.child->node_id;
+      	  std::cout << "nID: " << std::to_string(nID) << std::endl; 
+	   //int64_t nID = 1;   
+	   pointer_map[nID] = node.second.child;
+      }
+
       // make sure root's parent_info is up-to-date
       root->parent = parent_info(root, true);
     
