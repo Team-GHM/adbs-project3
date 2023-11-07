@@ -581,8 +581,10 @@ private:
 
 	// set node_id for new node (which is the target int of the node_pointer)
 	int64_t new_node_id = new_node.get_target();
-	new_node->node_id = new_node_id;
 	
+	//std::cout << "new_node_id: " << std::to_string(new_node_id) << std::endl;
+	
+	new_node->node_id = new_node_id;
 	bet.pointer_map[new_node_id] = new_node; // save new node_pointer for assigning parents
 
 	// if this node is the root, its points to itself, so get that pointer for new children
@@ -593,16 +595,16 @@ private:
 	}
 	else {
 	 
-	if (bet.pointer_map.count(node_id) > 0){
+	  if (bet.pointer_map.count(node_id) > 0){
 	   node_pointer points_to_this = bet.pointer_map[node_id];
-
 	   parent_info newNode_newPar = parent_info(points_to_this, false);
 	   new_node->parent = newNode_newPar;
-	   std::cout << "found node_pointer at node_id" << std::endl;
-	}
-	else {
+
+	   //std::cout << "found node_pointer at node_id" << std::endl;
+	  }
+	  else {
 		std::cout << "no existering thing at node_id" << std::endl;
-	}
+	  }
 	}	
 
 	// If there are still pivots to move...
@@ -670,8 +672,12 @@ private:
       auto e = epsilon;
       auto l = node_level;
       parent_info this_parent = this.parent;
-      node_pointer new_node = bet.ss->allocate(new node(e, l, bet.glob_node_id++));
+      node_pointer new_node = bet.ss->allocate(new node(e, l));//, bet.glob_node_id++));
       new_node.parent = this_parent;
+      int64_t new_node_id = new_node.get_target();
+      new_node->node_id = new_node_id;
+      bet.pointer_map[new_node_id] = new_node; // save new node_pointer for assigning parents
+
       for (auto it = begin; it != end; ++it)
       {
         new_node->elements.insert(it->second.child->elements.begin(),
@@ -1047,16 +1053,15 @@ public:
 	//glob_node_id(1)
   {
     
-    //int64_t new_node_id = glob_node_id++;
-    root = ss->allocate(new node(0.4, 0)); //, glob_node_id++));
+    root = ss->allocate(new node(0.4, 0));
+
+    // set root node_id
     root->node_id = root.get_target();
 
     // Set parent to itself on root
     parent_info parent = parent_info(root, true); 
     root->parent = parent;
     
-    int64_t targ = root.get_target();
-    std::cout << "root target: " << std::to_string(targ) << std::endl;  
   }
 
 
@@ -1076,21 +1081,12 @@ public:
       // update new root's pivots
       root->pivots = new_nodes;
 
+      // set new root node_id
       root->node_id = root.get_target();
 
-      //std::cout << "root id on handle root split: " << std::to_string(root->node_id) << std::endl;
-      //std::cout << "node_level on handle root split: " << std::to_string(root->node_level) << std::endl;
-      
-      // save 
-      //for (auto &node : new_nodes) {
-//	  int64_t nID = node.second.child->node_id;
-//      	  std::cout << "nID: " << std::to_string(nID) << std::endl; 
-//	   pointer_map[nID] = node.second.child;
-//     }
-
       // make sure root's parent_info is up-to-date
-      root->parent = parent_info(root, true);
-    
+      parent_info parent = parent_info(root, true);
+      root->parent = parent; 
     }
   }
 
