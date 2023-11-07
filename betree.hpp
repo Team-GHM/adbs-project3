@@ -244,7 +244,7 @@ private:
 
     // constructors
     parent_info(void)
-        : parent_ptr(), parent_size(0), is_root(true)
+        : parent_ptr(), parent_size(0), is_root(false)
     {
     }
 
@@ -272,7 +272,7 @@ private:
     // member vars
     node_pointer parent_ptr;
     uint64_t parent_size;
-    bool is_root;
+    bool is_root; // this is only true if this parent_info belongs to the root, and parent_ptr points to itself
   };
   ////////////////// ------ //
  
@@ -576,19 +576,15 @@ private:
           // Moved all pivots and elements to new leaves
           break;
 
-
-
-
-
         // Allocate a new node
         auto e = epsilon;
         auto l = node_level + 1;
-
-	std::cout << "creating new node with this as a parent parent..."<< std::endl;
-
-	// allocate new node
         node_pointer new_node = bet.ss->allocate(new node(e, l));
 		
+
+	// 3 cases: root (before children), internal-node, or leaf
+	// if (hasChildren) -> 
+
 
 
 
@@ -597,31 +593,41 @@ private:
         //
         bool hasChildren = false;
         parent_info newNode_newPar;
-        for (auto &pivot : pivots) {
-		// TODO: get parent
-		parent_info existingPar = pivot.second.child->parent;
+	parent_info existingPar;
 
-		newNode_newPar = parent_info(existingPar.parent_ptr, new_node->elements.size() + new_node->pivots.size(), false);
+	// if this node has children, get a node_pointer to itself for split children
+        for (auto &pivot : pivots) {
+		existingPar.parent_ptr = pivot.second.child->parent.parent_ptr;
                 hasChildren = true;
                 break;
         }
         if (!hasChildren){// root on first split or leaf
-		newNode_newPar = parent_info(parent.parent_ptr, new_node->elements.size() + new_node->pivots.size(), false);
+		
+		if (parent.is_root) {// the root's parent is itself
+			
+			// (root is the parent, init size, false for not root) 
+			newNode_newPar = parent_info(parent.parent_ptr, new_node->elements.size() + new_node->pivots.size(), false);
+		}
+		else{
+		newNode_newPar = parent_info(parent.parent_ptr, new_node->elements.size() + new_node->pivots.size(), false);	// TODO:  temp change 
+		
+		}
+		//newNode_newPar = parent_info(parent.parent_ptr, new_node->elements.size() + new_node->pivots.size(), false);
         }
 
 
 
 
         // Update the current parent_info to be correctly sized
-        parent_info curNode_newPar = parent_info(parent.parent_ptr, elements.size() + pivots.size(), parent.is_root);
-  	parent = curNode_newPar;
+        //parent_info curNode_newPar = parent_info(parent.parent_ptr, elements.size() + pivots.size(), parent.is_root);
+  	//parent = curNode_newPar;
 	
         // TODO: create new parent info with correct size for new_node
         //parent_info newNode_newPar = parent_info(TODO, new_node->elements.size() + new_node->pivots.size(), false);	
 	new_node->parent = newNode_newPar;
 
 
-	//new_node->parent = parent; // TODO: temp/remove
+
 
 	// If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
@@ -664,6 +670,7 @@ private:
         }
       }
 
+      // TODO: update parent_info elements/size
       for (auto it = result.begin(); it != result.end(); ++it)
         it->second.child_size = it->second.child->elements.size() +
                                 it->second.child->pivots.size();
@@ -675,6 +682,8 @@ private:
       return result;
     }
 
+
+    // Merge Method
     node_pointer merge(betree &bet,
                        typename pivot_map::iterator begin,
                        typename pivot_map::iterator end)
@@ -1067,22 +1076,16 @@ public:
     if (new_nodes.size() > 0)
     {	
       auto e = root->epsilon;
-      auto l = root->node_level + 1;
-     
-      // alocate new root 
+      auto l = root->node_level + 1;   
       root = ss->allocate(new node(e, l));
-    
-      // Set parent to itself on root
-      parent_info parent = parent_info(root, root->pivots.size() + root->elements.size(), true);
-      root->parent = parent;
-        
+     
       // update new root's pivots
       root->pivots = new_nodes;
+
+      // make sure root's parent_info is up-to-date
+      parent_info root_update = parent_info(root, root->pivots.size() + root->elements.size(), true);
+      root->parent = root_update;
     
-      // update the pivots to have the root as their parent
-      for (auto &pivot : root->pivots){
-		pivot.second.child->parent = parent;
-      }
     }
 
   }

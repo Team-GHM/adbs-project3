@@ -285,8 +285,6 @@ public:
       target(0)
     {
 	   std::cout << "Void constructing...." << std::endl;
-    	  //ss = NULL;
-	  //target = 0;
     }
 
     
