@@ -257,7 +257,7 @@ private:
 	 
     // Serialization/deserialization
     void _serialize(std::iostream &fs, serialization_context &context) {
-        serialize(fs, context, parent_ptr);
+	serialize(fs, context, parent_ptr);
         fs << " ";
     	serialize(fs, context, no_parent);
     }
@@ -336,24 +336,6 @@ private:
       stat_tracker = window_stat_tracker();
     }
     
-
-/* // not using any more, i've just been assigning parent after node is made
-    node(float e, uint64_t level, parent_info parent)
-    : max_node_size(64)
-    , min_node_size(64 / 4)
-    , min_flush_size(64 / 16)
-    , epsilon(e)
-    , node_level(level)
-    , operation_count(0)
-    , ops_before_epsilon_update(100) // TODO: tune
-    , parent(parent) // set parent pointer
-    {
-      max_pivots = calculate_max_pivots();
-      max_messages = max_node_size - max_pivots;
-      stat_tracker = window_stat_tracker();
-    }
-*/
-
     uint64_t calculate_max_pivots()
     {
   
@@ -569,7 +551,6 @@ private:
       auto elt_idx = elements.begin();
       int things_moved = 0;
       
-      //std::cout << "num_new_leaves: " << std::to_string(num_new_leaves) << std::endl;
       // Iterate through number of new leaves to move items from this node in
       // Each leaf is a new node allocated and added to result pivot_map
       for (int i = 0; i < num_new_leaves; i++)
@@ -581,36 +562,19 @@ private:
         // Allocate a new node
         auto e = epsilon;
         auto l = node_level + 1;
-	
 	node_pointer new_node = bet.ss->allocate(new node(e, l)); //, new_node_id));
 
 	// set node_id for new node (which is the target int of the node_pointer)
 	auto new_node_id = new_node.get_target();
-	//std::cout << "new_node_id: " << std::to_string(new_node_id) << std::endl;	
-	new_node->node_id = new_node_id;
-	
-	
+	new_node->node_id = new_node_id;		
 	bet.pointer_map[new_node_id] = new_node; // save new node_pointer for assigning parents
 
-	// if this node is the root, its points to itself, so get that pointer for new children
-	if(parent.no_parent){		
-   	    auto points_to_root = parent.parent_ptr;
-	    auto newNode_newPar = parent_info(points_to_root, false);
-	    new_node->parent = newNode_newPar;
-	}
-	else {
-	 
-	  if (bet.pointer_map.count(node_id) > 0){
-	    auto points_to_this = bet.pointer_map[node_id];
-	    auto newNode_newPar = parent_info(points_to_this, false);
-	    new_node->parent = newNode_newPar;
-
-	    //std::cout << "found node_pointer at node_id" << std::endl;
-	  }
-	  else {
-		std::cout << "no existering thing at node_id" << std::endl;
-	  }
-	}	
+	// update parent info. new_node point to this node
+	auto this_node_id = node_id;
+	auto points_to_this = bet.pointer_map[this_node_id];
+        auto newNode_newPar = parent_info(points_to_this, false);
+        new_node->parent = newNode_newPar;
+	
 
 	// If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
@@ -623,7 +587,6 @@ private:
         while (things_moved < (i + 1) * things_per_new_leaf &&
                (pivot_idx != pivots.end() || elt_idx != elements.end()))
         {
-		//std::cout << "moving things to new leaf ... " << std::endl;
           
 	  // Move pivots in internal node
           if (pivot_idx != pivots.end())
@@ -632,9 +595,8 @@ private:
             new_node->pivots[pivot_idx->first] = pivot_idx->second;
             
 	    // update moved children's parent pointers to point to new_node
-	    parent_info update_child = parent_info(new_node, false); // points to new_node
+	    auto update_child = parent_info(new_node, false); // points to new_node
 	    pivot_idx->second.child->set_parent(update_child); // update the pivot's child to point to new_node 
-
 
 	    // Increment the pivot idx so we know when to stop adding elements
             // and don't add elements from the next pivot
@@ -669,11 +631,14 @@ private:
       assert(elt_idx == elements.end());
       pivots.clear();
       elements.clear();
-      //std::cout << "returning from split ..." << std::endl;
+
+
+      //TODO: any clean up? update this parent?
+      
       return result;
     }
 
-
+/*
     // Merge Method
     node_pointer merge(betree &bet,
                        typename pivot_map::iterator begin,
@@ -700,6 +665,8 @@ private:
       }
       return new_node;
     }
+
+
 
     void merge_small_children(betree &bet)
     {
@@ -733,6 +700,7 @@ private:
         }
       }
     }
+*/
 
     // Receive a collection of new messages and perform recursive
     // flushes or splits as necessary.  If we split, return a
@@ -797,12 +765,23 @@ private:
         }
         // Flush the messages from further down the tree.
         pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts);
-        // If more leaves were created from the flush, update our pivots.
+        
+	// If more leaves were created from the flush, update our pivots.
         if (!new_children.empty())
         {
+
           pivots.erase(first_pivot_idx);
           pivots.insert(new_children.begin(), new_children.end());
-        }
+       
+          auto this_node_id = node_id;
+          auto points_to_this = bet.pointer_map[this_node_id];
+          for (auto it = new_children.begin(); it != new_children.end(); ++it) {
+              auto child = it->second.child;
+                
+              parent_info update_parent = parent_info(points_to_this, false);
+              child->set_parent(update_parent);
+          }	  
+	}
         // Otherwise, make sure the size of the node we flushed to is up to date.
         else
         {
@@ -856,7 +835,22 @@ private:
             // Update the pivots.
             pivots.erase(child_pivot);
             pivots.insert(new_children.begin(), new_children.end());
-          }
+          
+
+
+            auto this_node_id = node_id;
+            auto points_to_this = bet.pointer_map[this_node_id];
+	    for (auto it = new_children.begin(); it != new_children.end(); ++it) {
+		auto child = it->second.child;
+	    	
+                parent_info update_parent = parent_info(points_to_this, false);
+                child->set_parent(update_parent);
+	    }
+
+
+                
+	  
+	  }
           else
           {
             // Otherwise if there are no new nodes, make sure the node size is up to date.
@@ -1063,7 +1057,6 @@ public:
         min_node_size(minnodesize),
         starting_epsilon(0.4),
         tunable_epsilon_level(0)
-	//glob_node_id(1)
   {
     
     root = ss->allocate(new node(0.4, 0));
@@ -1071,6 +1064,7 @@ public:
     // set root node_id
     auto new_root_id = root.get_target();
     root->node_id = new_root_id;
+    pointer_map[new_root_id] = root;
 
     // Set parent to itself on root
     auto parent = parent_info(root, true); 
@@ -1088,9 +1082,15 @@ public:
     pivot_map new_nodes = root->flush(*this, tmp);
     if (new_nodes.size() > 0)
     {	
+	
+      // erase node_pointer in pointer_map referenced by old root id 
+      auto old_root_id = root.get_target();
+      pointer_map.erase(old_root_id);
+      
+      // allocate new root
       auto e = root->epsilon;
       auto root_level  = root->node_level;   
-      root = ss->allocate(new node(e, root_level)); //, glob_node_id++));
+      root = ss->allocate(new node(e, root_level));
      
       // update new root's pivots
       root->pivots = new_nodes;
@@ -1098,7 +1098,8 @@ public:
       // set new root node_id
       auto new_root_id = root.get_target();
       root->node_id = new_root_id;
-
+      pointer_map[new_root_id] = root; // save pointer
+      	
       // make sure root's parent_info is up-to-date
       auto parent = parent_info(root, true);
       root->parent = parent; 
