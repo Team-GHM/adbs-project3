@@ -458,6 +458,11 @@ private:
 	return parent;
     }
 
+    void set_parent(parent_info new_parent)
+    {
+	parent = new_parent;
+    }
+
 
 
     // Return iterator pointing to the first element with mk >= k.
@@ -580,27 +585,27 @@ private:
 	node_pointer new_node = bet.ss->allocate(new node(e, l)); //, new_node_id));
 
 	// set node_id for new node (which is the target int of the node_pointer)
-	int64_t new_node_id = new_node.get_target();
-	
-	//std::cout << "new_node_id: " << std::to_string(new_node_id) << std::endl;
-	
+	auto new_node_id = new_node.get_target();
+	//std::cout << "new_node_id: " << std::to_string(new_node_id) << std::endl;	
 	new_node->node_id = new_node_id;
+	
+	
 	bet.pointer_map[new_node_id] = new_node; // save new node_pointer for assigning parents
 
 	// if this node is the root, its points to itself, so get that pointer for new children
 	if(parent.no_parent){		
-   	    node_pointer points_to_root = parent.parent_ptr;
-            parent_info newNode_newPar = parent_info(points_to_root, false);
+   	    auto points_to_root = parent.parent_ptr;
+	    auto newNode_newPar = parent_info(points_to_root, false);
 	    new_node->parent = newNode_newPar;
 	}
 	else {
 	 
 	  if (bet.pointer_map.count(node_id) > 0){
-	   node_pointer points_to_this = bet.pointer_map[node_id];
-	   parent_info newNode_newPar = parent_info(points_to_this, false);
-	   new_node->parent = newNode_newPar;
+	    auto points_to_this = bet.pointer_map[node_id];
+	    auto newNode_newPar = parent_info(points_to_this, false);
+	    new_node->parent = newNode_newPar;
 
-	   //std::cout << "found node_pointer at node_id" << std::endl;
+	    //std::cout << "found node_pointer at node_id" << std::endl;
 	  }
 	  else {
 		std::cout << "no existering thing at node_id" << std::endl;
@@ -619,12 +624,19 @@ private:
                (pivot_idx != pivots.end() || elt_idx != elements.end()))
         {
 		//std::cout << "moving things to new leaf ... " << std::endl;
-          // Move pivots
+          
+	  // Move pivots in internal node
           if (pivot_idx != pivots.end())
           {
             // Add pivot to new node
             new_node->pivots[pivot_idx->first] = pivot_idx->second;
-            // Increment the pivot idx so we know when to stop adding elements
+            
+	    // update moved children's parent pointers to point to new_node
+	    parent_info update_child = parent_info(new_node, false); // points to new_node
+	    pivot_idx->second.child->set_parent(update_child); // update the pivot's child to point to new_node 
+
+
+	    // Increment the pivot idx so we know when to stop adding elements
             // and don't add elements from the next pivot
             ++pivot_idx;
             things_moved++;
@@ -647,7 +659,8 @@ private:
           }
         }
       }
-
+  
+      // make sure the child_size in new child_info is correct
       for (auto it = result.begin(); it != result.end(); ++it)
         it->second.child_size = it->second.child->elements.size() +
                                 it->second.child->pivots.size();
@@ -1056,10 +1069,11 @@ public:
     root = ss->allocate(new node(0.4, 0));
 
     // set root node_id
-    root->node_id = root.get_target();
+    auto new_root_id = root.get_target();
+    root->node_id = new_root_id;
 
     // Set parent to itself on root
-    parent_info parent = parent_info(root, true); 
+    auto parent = parent_info(root, true); 
     root->parent = parent;
     
   }
@@ -1082,10 +1096,11 @@ public:
       root->pivots = new_nodes;
 
       // set new root node_id
-      root->node_id = root.get_target();
+      auto new_root_id = root.get_target();
+      root->node_id = new_root_id;
 
       // make sure root's parent_info is up-to-date
-      parent_info parent = parent_info(root, true);
+      auto parent = parent_info(root, true);
       root->parent = parent; 
     }
   }
