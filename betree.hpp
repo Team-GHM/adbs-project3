@@ -734,7 +734,7 @@ private:
           apply(it->first, it->second, bet.default_value);
 
         // Now flush to out-of-core or clean children as necessary
-        while (elements.size() + pivots.size() >= max_node_size)
+        while (elements.size() >= max_messages || pivots.size() >= max_pivots)
         {
           // Find the child with the largest set of messages in our buffer
           unsigned int max_size = 0;
