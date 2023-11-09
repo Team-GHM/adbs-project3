@@ -347,6 +347,11 @@ private:
       }
     }
 
+    // returns the pivots for this node
+    pivot_map get_pivots() {
+	return pivots;
+    }
+
     bool is_leaf(void) const
     {
       return pivots.empty();
@@ -547,6 +552,55 @@ private:
       elements.clear();
       return result;
     }
+
+
+    // Method to shorten parts of the tree.
+    void adopt(betree &bet) {
+	
+	// Nothing to adopt if leaf
+	if (is_leaf())
+        	return;
+
+	// No need to adopt if pivots at max
+	if (pivots.size() >= max_pivots)
+		return;
+
+	uint64_t total_pivots = 0; // for counting grandchildren to adopt
+	std::vector<pivot_map>> adoptees;// store nodes to adopt
+	
+	// Iterate over children and add count their pivot to assess how many
+	// grandchldren can be adopted
+	for (auto it = pivots.begin(); it != pivots.end(); ++it)
+        {
+	  if (total_pivots + it->second.child->pivots.size() > max_pivots)
+  	    break;
+		
+	  total_pivots += it->second.child->pivots.size();
+		
+
+	  pivot_map grandchildren = it->second.child->get_pivots(); // granchildren of this child
+  	  adoptees.push_back(grandchildren);	
+	}
+
+	// if there are children to adopt
+	if (total_pivots > 0)
+	{
+	  // iterate over batches of grandchildren to adopt
+	  for (auto &adoptee_batch : adoptees) {
+	    if (pivots.size() >= max_pivots) {
+	      break; // stop if reached max_pivots
+    	    }
+		
+		// for each grandchild 
+	    for (auto &adoptee : adoptee_batch) {
+
+	      pivots.insert(adoptee); // adopt
+	    }
+  	  }
+	}
+
+    } 
+
 
     node_pointer merge(betree &bet,
                        typename pivot_map::iterator begin,
