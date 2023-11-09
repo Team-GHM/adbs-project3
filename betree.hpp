@@ -633,8 +633,6 @@ private:
       elements.clear();
 
 
-      //TODO: any clean up? update this parent?
-      
       return result;
     }
 
@@ -773,6 +771,7 @@ private:
           pivots.erase(first_pivot_idx);
           pivots.insert(new_children.begin(), new_children.end());
        
+	  // Update passed down children to point to this
           auto this_node_id = node_id;
           auto points_to_this = bet.pointer_map[this_node_id];
           for (auto it = new_children.begin(); it != new_children.end(); ++it) {
@@ -835,9 +834,8 @@ private:
             // Update the pivots.
             pivots.erase(child_pivot);
             pivots.insert(new_children.begin(), new_children.end());
-          
 
-
+	    // Update passed down children to point to this
             auto this_node_id = node_id;
             auto points_to_this = bet.pointer_map[this_node_id];
 	    for (auto it = new_children.begin(); it != new_children.end(); ++it) {
@@ -846,10 +844,6 @@ private:
                 parent_info update_parent = parent_info(points_to_this, false);
                 child->set_parent(update_parent);
 	    }
-
-
-                
-	  
 	  }
           else
           {
@@ -1100,7 +1094,7 @@ public:
       root->node_id = new_root_id;
       pointer_map[new_root_id] = root; // save pointer
       	
-      // make sure root's parent_info is up-to-date
+      // make sure root's parent_info is up-to-date (parents is itself)
       auto parent = parent_info(root, true);
       root->parent = parent; 
     }
