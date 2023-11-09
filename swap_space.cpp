@@ -115,10 +115,10 @@ void swap_space::write_back(swap_space::object *obj)
 {
   assert(objects.count(obj->id) > 0);
 
-  debug(std::cout << "Writing back " << obj->id
+ /* debug(std::cout << "Writing back " << obj->id
 	<< " (" << obj->target << ") "
 	<< "with last access time " << obj->last_access << std::endl);
-
+*/
   // This calls _serialize on all the pointers in this object,
   // which keeps refcounts right later on when we delete them all.
   // In the future, we may also use this to implement in-memory
