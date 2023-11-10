@@ -258,7 +258,6 @@ private:
     int operation_count;
     int ops_before_epsilon_update;
 
-    // TODO Base these defaults off of max pivots or max messages instead.
     node()
     : max_node_size(64)
     , min_node_size(64 / 4)
@@ -266,7 +265,7 @@ private:
     , epsilon(0.4)
     , node_level(0)
     , operation_count(0)
-    , ops_before_epsilon_update(100) // TODO: tune
+    , ops_before_epsilon_update(100)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -280,7 +279,7 @@ private:
     , epsilon(e)
     , node_level(level)
     , operation_count(0)
-    , ops_before_epsilon_update(100) // TODO: tune
+    , ops_before_epsilon_update(100)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -476,8 +475,12 @@ private:
       // UPDATED ASSERT doesn't check against max size of node.
       // This checks that at least the pivots or messages are outside of their bounds.
       assert((pivots.size() >= max_pivots) || (elements.size() >= max_messages));
-      // Create as many new leaves as pivots will allow and divide the elements equally between them.
-      int num_new_leaves = max_pivots;
+      // This size split does a good job of causing the resulting
+      // nodes to have size between 0.4 * MAX_NODE_SIZE and 0.6 * MAX_NODE_SIZE.
+      int num_new_leaves = (pivots.size() + elements.size())  / (10 * max_node_size / 24);
+      if (num_new_leaves < 2) {
+        num_new_leaves = 2;
+      }
       // Make sure nothing here is left after adding to leaves
       int things_per_new_leaf =
           (pivots.size() + elements.size() + num_new_leaves - 1) / num_new_leaves;
@@ -552,9 +555,6 @@ private:
                        typename pivot_map::iterator begin,
                        typename pivot_map::iterator end)
     {
-      // TODO epsilon might need to be calculated based on the nodes being merged.
-      // TODO If the merging of nodes moves the new node up a level, node_level needs to be decreased by 1.
-      // In the case of merge_small_children, the merged node(s) stay at the same level. 
       auto e = epsilon;
       auto l = node_level;
       node_pointer new_node = bet.ss->allocate(new node(e, l));
