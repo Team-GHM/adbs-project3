@@ -590,7 +590,7 @@ private:
 	  auto endit = it;
 	  // if (current_pivot_size - 1 (for erasing parent) + potential_adoptee_count) > max_pivots
 	  if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
-		  break; // don't adopt the set of grandchildren
+		  continue; // don't adopt the set of grandchildren
 	  }
 	  ++endit; // advance for erasing child
 
