@@ -555,65 +555,88 @@ private:
 
 
     // Method to shorten parts of the tree.
+    // 
+    // This method goes through the children of the node its called on and will adopt 
+    // grandchildren and erase their parents. A node can only adopt up to their max_pivots 
+    // amount of grandchildren. Grandchildren will only be adopted if all of the siblings
+    // in the families of grandchildren can be adopted.
+    //
+    // Before taking on grandchildren as children, all of the messages child nodes are forwarded
+    // to grandchildren, then after adoption, the child nodes (pivots) are erased.
+    // -----------------------------------------------------------------------------------------
     void adopt(betree &bet) {
 	
 	// Nothing to adopt if leaf
-	if (is_leaf())
+	if (is_leaf()) {
         	return;
+	}
 
 	// No need to adopt if pivots at max
-	if (pivots.size() >= max_pivots)
+	if (pivots.size() >= max_pivots) {
 		return;
+	}
 
 	uint64_t total_pivots = 0; // for counting grandchildren to adopt
-	std::vector<pivot_map>> adoptees;// store nodes to adopt
-	
+	std::vector<pivot_map> adoptees;// store nodes to adopt
+	std::vector<message_map> messages_to_forward; // stores children's messags to forward to adoptees
+
 	// for erasing children
 	auto beginit = pivots.begin();
 	auto endit = pivots.begin();
 
+
 	// Iterate over children and add count their pivots to assess how many
 	// grandchldren can be adopted
-	for (auto it = pivots.begin(); it != pivots.end(); ++it)
-        {
-	  if (total_pivots + it->second.child->pivots.size() > max_pivots)
-  	    break;
-		
+	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+	  if (total_pivots + it->second.child->pivots.size() > max_pivots) {
+		  break;
+	  }
+
 	  total_pivots += it->second.child->pivots.size();
 		
 	  // get the pivot_map from child
 	  pivot_map grandchildren = it->second.child->get_pivots(); // granchildren of this child
 	  adoptees.push_back(grandchildren);
-  	  ++endit;// advance for erasing child	  
+  
+  	  // get the message_map	  
+          message_map child_messages = it->second.child->elements;
+          messages_to_forward.push_back(child_messages);
+
+	  ++endit;// advance for erasing child	  
 	}
 
 	// if there are children to be adopted
-	if (total_pivots > 0)
+	if (total_pivots > 0) {
 	  if (endit != beginit) { // and children to be erased
 
+		
 	    // iterate over families of grandchildren to adopt
 	    for (pivot_map &siblings : adoptees) {
 	        if (pivots.size() >= max_pivots) {
 	            break; // stop if reached max_pivots
     	        }
 
-		// TODO: forward messages from child to grandchild
-		
+		// Adopt sibling grandchildren
+		pivots.insert(siblings.begin(), siblings.end());
 
-	        // for each grandchild 
-	        for (auto &grandchild : siblings) {
-	            pivots.insert(grandchild); // adopt them ()
-  	        }
-  	  
+                // TODO: forward messages from child to grandchild
+				
 	        // Erase grandchildren's parent from this's pivots
-	        pivots.erase(beginit, endit);	    	  
+	        pivots.erase(beginit, endit);
 	    }
 	  }
 	}
-  
-  
-	// TODO: flush to clear messages?
 
+	// After adoption, go through all children of this node and udpates child_size
+	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+		it.second.child_size =
+                	it->second.child->pivots.size() +
+                	it->second.child->elements.size();
+	}
+	
+ 
+	// TODO: flush to clear messages
+	// TODO: iterate over newly adopted children and flush them? but will result in new pivots 
 
         // TODO: call adopt() other new children? or maybe just do it once and let split as necessary at first
         //  then we can experiment on manually adopting - for now we just call adopt on epsilon updates
