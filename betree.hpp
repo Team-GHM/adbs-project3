@@ -347,11 +347,6 @@ private:
       }
     }
 
-    // returns the pivots for this node
-    pivot_map get_pivots() {
-	return pivots;
-    }
-
     bool is_leaf(void) const
     {
       return pivots.empty();
@@ -595,9 +590,8 @@ private:
 	    total_pivots += it->second.child->pivots.size();
 		
 	    // get the pivot_map from child
-	    pivot_map grandchildren = it->second.child->get_pivots(); // granchildren of this child
+	    pivot_map grandchildren = it->second.child->pivots; // granchildren of this child
 	  
-  
     	    // get the message_map	  
             message_map child_messages = it->second.child->elements;
         
