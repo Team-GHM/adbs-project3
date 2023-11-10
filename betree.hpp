@@ -258,7 +258,6 @@ private:
     int operation_count;
     int ops_before_epsilon_update;
 
-    // TODO Base these defaults off of max pivots or max messages instead.
     node()
     : max_node_size(64)
     , min_node_size(64 / 4)
@@ -266,7 +265,7 @@ private:
     , epsilon(0.4)
     , node_level(0)
     , operation_count(0)
-    , ops_before_epsilon_update(100) // TODO: tune
+    , ops_before_epsilon_update(100)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -280,7 +279,7 @@ private:
     , epsilon(e)
     , node_level(level)
     , operation_count(0)
-    , ops_before_epsilon_update(100) // TODO: tune
+    , ops_before_epsilon_update(100)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -556,9 +555,6 @@ private:
                        typename pivot_map::iterator begin,
                        typename pivot_map::iterator end)
     {
-      // TODO epsilon might need to be calculated based on the nodes being merged.
-      // TODO If the merging of nodes moves the new node up a level, node_level needs to be decreased by 1.
-      // In the case of merge_small_children, the merged node(s) stay at the same level. 
       auto e = epsilon;
       auto l = node_level;
       node_pointer new_node = bet.ss->allocate(new node(e, l));
