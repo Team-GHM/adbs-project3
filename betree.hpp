@@ -361,8 +361,35 @@ private:
 
     // returns true or false for whether the key is in the range of this node's elements
     bool is_in_range(const MessageKey<Key> &mkey) {
-	auto it = elements.lower_bound(mkey);
-	return (it != elements.end() && !(mkey < it->first));
+	if (elements.empty()) {
+		return false;
+	}
+
+	//auto iter = elements.upper_bound(mkey.range_end());
+	//if (iter != elements.begin())
+
+	auto firstElt = elements.begin();
+	auto firstKey = firstElt->first;
+	auto low_it = elements.lower_bound(firstKey);
+
+	auto lastElt = elements.end();
+	lastElt--;
+	auto lastKey = lastElt->first;
+	auto end_it = elements.lower_bound(lastKey);
+	
+
+	bool in_range =  (!(mkey < low_it->first) && (mkey < end_it->first));	
+
+	if (mkey == end_it->first){
+		in_range = true;
+	}
+
+	//auto low_it = elements.lower_bound(mkey);
+        //auto end_it = elements.upper_bound(mkey);
+	//bool in_range = 
+	//bool in_range =  (!(mkey < low_it->first) && (mkey < end_it->first));
+	
+	return in_range;
     }
 
     bool is_leaf(void) const
@@ -630,6 +657,25 @@ private:
               message_map child_messages = child_to_erase->elements;
 	      messages_to_fwd.push_back(child_messages);
 
+
+	     for (const auto &child_message : child_messages){
+		bool applied = false;
+		for (auto &grandchild : grandchildren) {
+			
+			if (grandchild.second.child->is_in_range(child_message.first)) {
+				grandchild.second.child->apply(child_message.first, child_message.second, bet.default_value);	
+				applied = true;
+			}
+		}
+		if (applied) {
+			std::cout << "successfully applied" << std::endl;
+		}
+		else {
+			std::cout << "NOT applied" << std::endl;
+		}
+	     }
+
+
 	      // adopt sibling grandchildren
 	      pivots.insert(grandchildren.begin(), grandchildren.end());
 	    
@@ -658,9 +704,22 @@ private:
     	}
 
 	// iterate through all saved message_maps to fwd their messages
-	for (const auto &messageMap : messages_to_fwd) {
-	  for (auto fwd_it = messageMap.begin(); fwd_it != messageMap.end(); ++fwd_it){
-	    
+//	for (const auto &messageMap : messages_to_fwd) {
+//	  for (auto fwd_it = messageMap.begin(); fwd_it != messageMap.end(); ++fwd_it){
+//		 auto key = fwd_it->first;// key of message to fwd
+		
+//		 apply(key, fwd_it->second, bet.default_value);
+
+		/*
+		auto pivot_itr = get_pivot(key);
+		node_pointer childNode = pivot_itr->second.child;
+		bool fwded = false;
+		if (!(key < pivot_itr->first || pivot_itr->first < key)) {
+			fwded = true;
+			childNode->apply(key, fwd_it->second, bet.default_value);
+		}
+		*/
+	/*
 	    auto key = fwd_it->first;// key of message to fwd
  	    bool fwded = false;
 	    // iterate through children 
@@ -679,10 +738,16 @@ private:
 	          break;	
 	      }	
    	    }
+	    */
+		 /*
 	    if (!fwded)
 		    std::cout << "didn't find a chld in the range to fwd to" << std::endl;
-	  }
-	}
+	    else {
+		std::cout << "forwarded message successfuly" << std::endl;
+	    }*/
+		  
+//	  }
+//	}
 
 	// After adoption, go through all children of this node and udpates child_size
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
