@@ -563,6 +563,9 @@ private:
     //
     // Before taking on grandchildren as children, all of the messages child nodes are forwarded
     // to grandchildren, then after adoption, the child nodes (pivots) are erased.
+    //
+    // After adoption, it isn't guaranteed that this node's children will have less elements than
+    // their respective max_messages, so a flush will need to happen.
     // -----------------------------------------------------------------------------------------
     void adopt(betree &bet) {
 	
@@ -633,14 +636,8 @@ private:
                 	it->second.child->pivots.size() +
                 	it->second.child->elements.size();
 	}
-	
- 
-	// TODO: flush to clear messages
-	// TODO: iterate over newly adopted children and flush them? but will result in new pivots 
 
-        // TODO: call adopt() other new children? or maybe just do it once and let split as necessary at first
-        //  then we can experiment on manually adopting - for now we just call adopt on epsilon updates
-
+	// TODO: iterate over children and recursivley call adopt()?
     } 
 
 
