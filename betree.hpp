@@ -319,30 +319,36 @@ private:
       return max_pivots;
     }
 
-    void set_epsilon(float e) {
+    void set_epsilon(float e, betree &bet) {
+      auto prev_max_pivots = max_pivots;
+		    
       epsilon = e;
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
+    
+      if (max_pivots > prev_max_pivots) {
+      	 adopt(bet);
+      }
     }
 
-    void add_read() {
+    void add_read(betree &bet) {
       stat_tracker.add_read();
       operation_count += 1;
       // periodically update epsilon
       if (operation_count == ops_before_epsilon_update) {
           float new_epsilon = stat_tracker.get_epsilon();
-          set_epsilon(new_epsilon);
+          set_epsilon(new_epsilon, bet);
           operation_count = 0;
       }
     }
 
-    void add_write() {
+    void add_write(betree &bet) {
       stat_tracker.add_write();
       operation_count += 1;
       // periodically update epsilon
       if (operation_count == ops_before_epsilon_update) {
           float new_epsilon = stat_tracker.get_epsilon();
-          set_epsilon(new_epsilon);
+          set_epsilon(new_epsilon, bet);
           operation_count = 0;
       }
     }
@@ -613,15 +619,10 @@ private:
 	    Key key = next_child->first;
 		
 	    // Erase the grandchild's parent
-	    child_to_erase->pivots.erase(child_to_erase.pivots.begin(), child_to_erase.pivots.end());
-	    child_to_erase->elements.erase(child_to_erase.elements.begin(), child_to_erase.elements.end());
-
-	    /*
-	    // erase their elements
-	    auto elt_child_it = get_element_begin(it);
-	    auto elt_next_it = get_element_begin(next_child);
-	    child_to_erase->erase(elt_child_it, elt_next_it);
-	    */
+	    //child_to_erase->pivots.erase(child_to_erase.pivots.begin(), child_to_erase.pivots.end());
+	    //child_to_erase->elements.erase(child_to_erase.elements.begin(), child_to_erase.elements.end());
+	    child_to_erase->pivots.clear();
+	    child_to_erase->elements.clear();
 
 	    pivots.erase(it, endit); // don't point to child
 	    total_pivots = pivots.size();
@@ -637,11 +638,11 @@ private:
 	    for (auto it = pivots.begin(); it != pivots.end(); ++it) {
 	      auto child = it->second.child;
 
-	      auto key = fwd_it.first;// key of message to fwd
+	      auto key = fwd_it->first;// key of message to fwd
 	
 	      // fwd key to proper child
 	      if (child->is_in_range(key)){
-	      	auto fwd_mssg = fwd_it.second;
+	      	auto fwd_mssg = fwd_it->second;
 	        child->apply(key, fwd_mssg, bet.default_value);
 	      }			
    	    }
@@ -770,7 +771,7 @@ private:
       // If this node is less than the tunable epsilon tree level
       // Checks for an epsilon update.
       if (node_level <= bet.tunable_epsilon_level) {
-        add_write();
+        add_write(bet);
       }
 
       // REMEMBER
@@ -907,13 +908,13 @@ private:
       return result;
     }
 
-    Value query(const betree &bet, const Key k)
+    Value query(betree &bet, const Key k)
     {
       debug(std::cout << "Querying " << this << std::endl);
       // If this node is less than the tunable epsilon tree level
       // Checks for an epsilon update.
       if (node_level <= bet.tunable_epsilon_level) {
-        add_read();
+        add_read(bet);
       }
       if (is_leaf())
       {
