@@ -568,7 +568,11 @@ private:
 	uint64_t total_pivots = 0; // for counting grandchildren to adopt
 	std::vector<pivot_map>> adoptees;// store nodes to adopt
 	
-	// Iterate over children and add count their pivot to assess how many
+	// for erasing children
+	auto beginit = pivots.begin();
+	auto endit = pivots.begin();
+
+	// Iterate over children and add count their pivots to assess how many
 	// grandchldren can be adopted
 	for (auto it = pivots.begin(); it != pivots.end(); ++it)
         {
@@ -577,27 +581,42 @@ private:
 		
 	  total_pivots += it->second.child->pivots.size();
 		
-
+	  // get the pivot_map from child
 	  pivot_map grandchildren = it->second.child->get_pivots(); // granchildren of this child
-  	  adoptees.push_back(grandchildren);	
+	  adoptees.push_back(grandchildren);
+  	  ++endit;// advance for erasing child	  
 	}
 
-	// if there are children to adopt
+	// if there are children to be adopted
 	if (total_pivots > 0)
-	{
-	  // iterate over batches of grandchildren to adopt
-	  for (auto &adoptee_batch : adoptees) {
-	    if (pivots.size() >= max_pivots) {
-	      break; // stop if reached max_pivots
-    	    }
-		
-		// for each grandchild 
-	    for (auto &adoptee : adoptee_batch) {
+	  if (endit != beginit) { // and children to be erased
 
-	      pivots.insert(adoptee); // adopt
+	    // iterate over families of grandchildren to adopt
+	    for (pivot_map &siblings : adoptees) {
+	        if (pivots.size() >= max_pivots) {
+	            break; // stop if reached max_pivots
+    	        }
+
+		// TODO: forward messages from child to grandchild
+		
+
+	        // for each grandchild 
+	        for (auto &grandchild : siblings) {
+	            pivots.insert(grandchild); // adopt them ()
+  	        }
+  	  
+	        // Erase grandchildren's parent from this's pivots
+	        pivots.erase(beginit, endit);	    	  
 	    }
-  	  }
+	  }
 	}
+  
+  
+	// TODO: flush to clear messages?
+
+
+        // TODO: call adopt() other new children? or maybe just do it once and let split as necessary at first
+        //  then we can experiment on manually adopting - for now we just call adopt on epsilon updates
 
     } 
 
