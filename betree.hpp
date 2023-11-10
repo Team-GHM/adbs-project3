@@ -324,13 +324,13 @@ private:
 
     void set_epsilon(float e, betree &bet) {
 
-      std::cout << "set_epsilon() called. prev_max_pivots: " << std::to_string(max_pivots) << std::endl;
+      //std::cout << "set_epsilon() called. prev_max_pivots: " << std::to_string(max_pivots) << std::endl;
       auto prev_max_pivots = max_pivots;
 		    
       epsilon = e;
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
-     std::cout << "max_pivots after e update: " << std::to_string(max_pivots) << std::endl;
+      //std::cout << "max_pivots after e update: " << std::to_string(max_pivots) << std::endl;
       if (max_pivots > prev_max_pivots) {
       	 adopt(bet);
       }
@@ -338,7 +338,6 @@ private:
 
     void add_read(betree &bet) {
 
-	std::cout << "Caling add_read ... " << std::endl;
       stat_tracker.add_read();
       operation_count += 1;
       // periodically update epsilon
@@ -350,7 +349,6 @@ private:
     }
 
     void add_write(betree &bet) {
-	    std::cout << "calling add_write ... " << std::endl;
       stat_tracker.add_write();
       operation_count += 1;
       // periodically update epsilon
@@ -593,12 +591,11 @@ private:
         	return;
 	}
 
+
 	// No need to adopt if pivots at max
 	if (pivots.size() >= max_pivots) {
 		return;
 	}
-
-	std::cout << "In adopt() method, Didn't return ... " << std::endl;
 
 	uint64_t total_pivots = pivots.size(); // for counting grandchildren to adopt
 	std::vector<message_map> messages_to_fwd;
@@ -615,56 +612,75 @@ private:
 
 	  if (endit !=it) {
 
-  		std::cout << "about to adopt(). total_pivots before adopt: " << std::to_string(total_pivots) << std::endl;
-	    total_pivots += it->second.child->pivots.size();
-		
-	    // get the pivot_map from child
 	    auto child_to_erase = it->second.child;
-	    pivot_map grandchildren = child_to_erase->pivots; // granchildren of this child
-	  
-    	    // save the message_map	  
-            message_map child_messages = child_to_erase->elements;
-	    messages_to_fwd.push_back(child_messages);
-
-	    // adopt sibling grandchildren
-	    pivots.insert(grandchildren.begin(), grandchildren.end());
 	    
-    	    // decrement node_level of adopted children
-	    for (auto adopt_it = grandchildren.begin(); adopt_it != grandchildren.end(); ++adopt_it) {
-		adopt_it->second.child->decrement_node_level();
+	    // Skip is child is leaf, there's no grandchildren to adopt
+	    if (child_to_erase->is_leaf()) {
+		    continue;
 	    }
+
+	    pivot_map grandchildren = child_to_erase->pivots; // granchildren of this child
+	 
+	    if (grandchildren.size() > 0) {
+	      
+	      std::cout << "about to adopt(): " << std::to_string(grandchildren.size()) << " grandchildren" << std::endl;
+  	      std::cout << "Total_pivots before adopt: " << std::to_string(total_pivots) << std::endl;
+
+    	      // save the message_map	  
+              message_map child_messages = child_to_erase->elements;
+	      messages_to_fwd.push_back(child_messages);
+
+	      // adopt sibling grandchildren
+	      pivots.insert(grandchildren.begin(), grandchildren.end());
+	    
+    	      // decrement node_level of adopted children
+	      for (auto adopt_it = grandchildren.begin(); adopt_it != grandchildren.end(); ++adopt_it) {
+		  adopt_it->second.child->decrement_node_level();
+	      }
 		    
-	    // Get the key of the next child to look at 
-	    auto next_child = next(it);
-	    Key key = next_child->first;
+	      // Get the key of the next child to look at 
+	      auto next_child = next(it);
+	      //Key key = next_child->first;
 		
-	    // Erase the grandchild's parent
-	    child_to_erase->pivots.clear();
-	    child_to_erase->elements.clear();
+	      // Erase the grandchild's parent
+	      child_to_erase->pivots.clear();
+	      child_to_erase->elements.clear();
 
-	    pivots.erase(it, endit); // don't point to child
-	    total_pivots = pivots.size();
-	    std::cout << "performed adopt. total_pivots after adopt: " << std::to_string(total_pivots) << std::endl;
-
-	    it = pivots.lower_bound(key); // advance the iterator to the next non-erased child
+	      //pivots.erase(it, endit); // don't point to child
+	      total_pivots = pivots.size();
+	      std::cout << "performed adopt. total_pivots after adopt: " << std::to_string(total_pivots) << std::endl;
+	      std::cout << "---------------------------------------------" << std::endl;
+	      std::cout << "" << std::endl;
+	      it = next_child;
+	    //it = pivots.lower_bound(key); // advance the iterator to the next non-erased child
+	    }
 	  }
     	}
 
 	// iterate through all saved message_maps to fwd their messages
 	for (const auto &messageMap : messages_to_fwd) {
 	  for (auto fwd_it = messageMap.begin(); fwd_it != messageMap.end(); ++fwd_it){
+	    
+	    auto key = fwd_it->first;// key of message to fwd
+ 	    bool fwded = false;
 	    // iterate through children 
 	    for (auto it = pivots.begin(); it != pivots.end(); ++it) {
 	      auto child = it->second.child;
 
-	      auto key = fwd_it->first;// key of message to fwd
 	
 	      // fwd key to proper child
 	      if (child->is_in_range(key)){
+		fwded = true;
 	      	auto fwd_mssg = fwd_it->second;
 	        child->apply(key, fwd_mssg, bet.default_value);
-	      }			
+	      }
+	      if(fwded){
+		  std::cout << "forwarded message successfuly" << std::endl;
+	          break;	
+	      }	
    	    }
+	    if (!fwded)
+		    std::cout << "didn't find a chld in the range to fwd to" << std::endl;
 	  }
 	}
 
@@ -948,6 +964,7 @@ private:
         }
         else
         {
+	  std::cout << "key don't exist on Leaf node!" << std::endl;
           throw std::out_of_range("Key does not exist");
         }
       }
@@ -983,8 +1000,10 @@ private:
         // insert messages, then we should return does-not-exist (in
         // this subtree).
         message_iter++;
-        if (message_iter == elements.end() || k < message_iter->first)
-          throw std::out_of_range("Key does not exist");
+        if (message_iter == elements.end() || k < message_iter->first){
+          std::cout << "key don't exist on internal node!" << std::endl;
+	  throw std::out_of_range("Key does not exist");
+	}
       }
       else if (message_iter->second.opcode == INSERT)
       {
