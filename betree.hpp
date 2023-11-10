@@ -319,19 +319,27 @@ private:
       return max_pivots;
     }
 
+    void decrement_node_level() {
+	node_level--;
+    }
+
     void set_epsilon(float e, betree &bet) {
+
+      std::cout << "set_epsilon() called. prev_max_pivots: " << std::to_string(max_pivots) << std::endl;
       auto prev_max_pivots = max_pivots;
 		    
       epsilon = e;
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
-    
+     std::cout << "max_pivots after e update: " << std::to_string(max_pivots) << std::endl;
       if (max_pivots > prev_max_pivots) {
       	 adopt(bet);
       }
     }
 
     void add_read(betree &bet) {
+
+	std::cout << "Caling add_read ... " << std::endl;
       stat_tracker.add_read();
       operation_count += 1;
       // periodically update epsilon
@@ -343,6 +351,7 @@ private:
     }
 
     void add_write(betree &bet) {
+	    std::cout << "calling add_write ... " << std::endl;
       stat_tracker.add_write();
       operation_count += 1;
       // periodically update epsilon
@@ -586,8 +595,9 @@ private:
 		return;
 	}
 
-	uint64_t total_pivots = pivots.size(); // for counting grandchildren to adopt
+	std::cout << "In adopt() method, Didn't return ... " << std::endl;
 
+	uint64_t total_pivots = pivots.size(); // for counting grandchildren to adopt
 	std::vector<message_map> messages_to_fwd;
 
 	// Iterate over children and count their pivots to assess if
@@ -601,6 +611,8 @@ private:
 	  ++endit; // advance for erasing child
 
 	  if (endit !=it) {
+
+  		std::cout << "about to adopt(). total_pivots before adopt: " << std::to_string(total_pivots) << std::endl;
 	    total_pivots += it->second.child->pivots.size();
 		
 	    // get the pivot_map from child
@@ -613,19 +625,23 @@ private:
 
 	    // adopt sibling grandchildren
 	    pivots.insert(grandchildren.begin(), grandchildren.end());
-	
+	    
+    	    // decrement node_level of adopted children
+	    for (auto adopt_it = grandchildren.begin(); adopt_it != grandchildren.end(); ++adopt_it) {
+		adopt_it->second.child->decrement_node_level();
+	    }
+		    
 	    // Get the key of the next child to look at 
 	    auto next_child = next(it);
 	    Key key = next_child->first;
 		
 	    // Erase the grandchild's parent
-	    //child_to_erase->pivots.erase(child_to_erase.pivots.begin(), child_to_erase.pivots.end());
-	    //child_to_erase->elements.erase(child_to_erase.elements.begin(), child_to_erase.elements.end());
 	    child_to_erase->pivots.clear();
 	    child_to_erase->elements.clear();
 
 	    pivots.erase(it, endit); // don't point to child
 	    total_pivots = pivots.size();
+	    std::cout << "performed adopt. total_pivots after adopt: " << std::to_string(total_pivots) << std::endl;
 
 	    it = pivots.lower_bound(key); // advance the iterator to the next non-erased child
 	  }
