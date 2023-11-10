@@ -654,12 +654,16 @@ private:
     // flushes or splits as necessary.  If we split, return a
     // map with the new pivot keys pointing to the new nodes.
     // Otherwise return an empty map.
-    pivot_map flush(betree &bet, message_map &elts)
+    pivot_map flush(betree &bet, message_map &elts, float parent_epsilon)
     {
       // If this node is less than the tunable epsilon tree level
       // Checks for an epsilon update.
       if (node_level <= bet.tunable_epsilon_level) {
         add_write();
+      } else if (epsilon != parent_epsilon) {
+        epsilon = parent_epsilon; 
+        // Recalculate pivots and message buffer sizes
+        max_pivots = calculate_max_pivots();
       }
 
       // REMEMBER
@@ -712,7 +716,8 @@ private:
           assert(elt_start == elt_end);
         }
         // Flush the messages from further down the tree.
-        pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts);
+        auto e = epsilon;
+        pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts, e);
         // If more leaves were created from the flush, update our pivots.
         if (!new_children.empty())
         {
@@ -765,7 +770,8 @@ private:
           auto elt_child_it = get_element_begin(child_pivot);
           auto elt_next_it = get_element_begin(next_pivot);
           message_map child_elts(elt_child_it, elt_next_it);
-          pivot_map new_children = child_pivot->second.child->flush(bet, child_elts);
+          auto e = epsilon;
+          pivot_map new_children = child_pivot->second.child->flush(bet, child_elts, e);
           elements.erase(elt_child_it, elt_next_it);
           if (!new_children.empty())
           {
@@ -993,12 +999,13 @@ public:
   {
     message_map tmp;
     tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
-    pivot_map new_nodes = root->flush(*this, tmp);
+    auto e = root->epsilon;
+    pivot_map new_nodes = root->flush(*this, tmp, e);
     if (new_nodes.size() > 0)
     {
-      auto e = root->epsilon;
-      auto l = root->node_level + 1;
-      root = ss->allocate(new node(e, l));
+      e = root->epsilon;
+      // The root's level should always be 0
+      root = ss->allocate(new node(e, 0));
       root->pivots = new_nodes;
     }
   }
