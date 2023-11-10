@@ -580,55 +580,44 @@ private:
 	}
 
 	uint64_t total_pivots = 0; // for counting grandchildren to adopt
-	std::vector<pivot_map> adoptees;// store nodes to adopt
-	std::vector<message_map> messages_to_forward; // stores children's messags to forward to adoptees
-
-	// for erasing children
-	auto beginit = pivots.begin();
-	auto endit = pivots.begin();
-
 
 	// Iterate over children and add count their pivots to assess how many
 	// grandchldren can be adopted
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+	  auto endit = it;
+
 	  if (total_pivots + it->second.child->pivots.size() > max_pivots) {
 		  break;
 	  }
+	  ++endit; // advance for erasing child
 
-	  total_pivots += it->second.child->pivots.size();
+	  if (endit !=it) {
+	    total_pivots += it->second.child->pivots.size();
 		
-	  // get the pivot_map from child
-	  pivot_map grandchildren = it->second.child->get_pivots(); // granchildren of this child
-	  adoptees.push_back(grandchildren);
+	    // get the pivot_map from child
+	    pivot_map grandchildren = it->second.child->get_pivots(); // granchildren of this child
+	  
   
-  	  // get the message_map	  
-          message_map child_messages = it->second.child->elements;
-          messages_to_forward.push_back(child_messages);
+    	    // get the message_map	  
+            message_map child_messages = it->second.child->elements;
+        
+	
+	    // adopt sibling grandchildren
+	    pivots.insert(grandchildren.begin(), grandchildren.end());
+	
+	    // forward messages from child to newly adopted grandchild
+	    elements.insert(child_messages.begin(), child_messages.end());
 
-	  ++endit;// advance for erasing child	  
-	}
-
-	// if there are children to be adopted
-	if (total_pivots > 0) {
-	  if (endit != beginit) { // and children to be erased
-
+	    // Get the key of the next child to look at 
+	    auto next_child = next(it);
+	    Key key = next_child->first;
 		
-	    // iterate over families of grandchildren to adopt
-	    for (pivot_map &siblings : adoptees) {
-	        if (pivots.size() >= max_pivots) {
-	            break; // stop if reached max_pivots
-    	        }
+	    // Erase the parent
+	    pivots.erase(it, endit);
 
-		// Adopt sibling grandchildren
-		pivots.insert(siblings.begin(), siblings.end());
-
-                // TODO: forward messages from child to grandchild
-				
-	        // Erase grandchildren's parent from this's pivots
-	        pivots.erase(beginit, endit);
-	    }
+	    it = pivots.lower_bound(key); // advance the iterator to the next non-erased child
 	  }
-	}
+    	}
 
 	// After adoption, go through all children of this node and udpates child_size
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
