@@ -598,10 +598,11 @@ private:
 	    total_pivots += it->second.child->pivots.size();
 		
 	    // get the pivot_map from child
-	    pivot_map grandchildren = it->second.child->pivots; // granchildren of this child
+	    auto child_to_erase = it->second.child;
+	    pivot_map grandchildren = child_to_erase->pivots; // granchildren of this child
 	  
     	    // save the message_map	  
-            message_map child_messages = it->second.child->elements;
+            message_map child_messages = child_to_erase->elements;
 	    messages_to_fwd.push_back(child_messages);
 
 	    // adopt sibling grandchildren
@@ -611,8 +612,19 @@ private:
 	    auto next_child = next(it);
 	    Key key = next_child->first;
 		
-	    // Erase the parent
-	    pivots.erase(it, endit);
+	    // Erase the grandchild's parent
+	    child_to_erase->pivots.erase(child_to_erase.pivots.begin(), child_to_erase.pivots.end());
+	    child_to_erase->elements.erase(child_to_erase.elements.begin(), child_to_erase.elements.end());
+
+	    /*
+	    // erase their elements
+	    auto elt_child_it = get_element_begin(it);
+	    auto elt_next_it = get_element_begin(next_child);
+	    child_to_erase->erase(elt_child_it, elt_next_it);
+	    */
+
+	    pivots.erase(it, endit); // don't point to child
+	    total_pivots = pivots.size();
 
 	    it = pivots.lower_bound(key); // advance the iterator to the next non-erased child
 	  }
