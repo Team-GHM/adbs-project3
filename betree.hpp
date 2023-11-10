@@ -594,11 +594,12 @@ private:
 	  
     	    // get the message_map	  
             message_map child_messages = it->second.child->elements;
-        
-	
+        	
 	    // adopt sibling grandchildren
 	    pivots.insert(grandchildren.begin(), grandchildren.end());
 	
+	    // TODO: CHANGE - THIS INSERTS CHILD'S ELTS AT THIS NODE, NOT NEW ADOPTED CHILDREN
+	    // 		      FIGURE OUT HOW TO PARTITION THE ELTS CORRECTLY TO ADOPTEES
 	    // forward messages from child to newly adopted grandchild
 	    elements.insert(child_messages.begin(), child_messages.end());
 
