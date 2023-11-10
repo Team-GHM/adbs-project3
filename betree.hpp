@@ -347,6 +347,13 @@ private:
       }
     }
 
+    // returns true or false for whether the kv_pair is in the range of this node's elements
+    bool is_in_range(const std::pair<MessageKey<Key>, Message<Value>>& kv_pair) {
+	auto it = elements.lower_bound(kv_pair.first);
+	return (it != elements.end() && !(kv_pair.first < it->first));
+
+    }
+
     bool is_leaf(void) const
     {
       return pivots.empty();
@@ -576,6 +583,8 @@ private:
 
 	uint64_t total_pivots = 0; // for counting grandchildren to adopt
 
+	// TODO: init vector for message_maps
+
 	// Iterate over children and add count their pivots to assess how many
 	// grandchldren can be adopted
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
@@ -594,7 +603,8 @@ private:
 	  
     	    // get the message_map	  
             message_map child_messages = it->second.child->elements;
-        	
+            // TODO: push_back child_messages onto the message_map vector
+
 	    // adopt sibling grandchildren
 	    pivots.insert(grandchildren.begin(), grandchildren.end());
 	
@@ -613,6 +623,11 @@ private:
 	    it = pivots.lower_bound(key); // advance the iterator to the next non-erased child
 	  }
     	}
+
+	// TODO: iterate through all message_maps to fwd
+	// 	TODO: nested: iterate through all kv_pairs in each message_map
+	// 		TODO: nested: iterate through all pivots of this node (children)
+	// 			TODO: if child->is_in_range(kv_pair): apply(kv_pair) to that child
 
 	// After adoption, go through all children of this node and udpates child_size
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
