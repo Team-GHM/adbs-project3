@@ -258,7 +258,6 @@ private:
     int operation_count;
     int ops_before_epsilon_update;
 
-    // TODO Base these defaults off of max pivots or max messages instead.
     node()
     : max_node_size(64)
     , min_node_size(64 / 4)
@@ -266,7 +265,7 @@ private:
     , epsilon(0.4)
     , node_level(0)
     , operation_count(0)
-    , ops_before_epsilon_update(100) // TODO: tune
+    , ops_before_epsilon_update(100)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -280,7 +279,7 @@ private:
     , epsilon(e)
     , node_level(level)
     , operation_count(0)
-    , ops_before_epsilon_update(100) // TODO: tune
+    , ops_before_epsilon_update(100)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -497,8 +496,12 @@ private:
       // UPDATED ASSERT doesn't check against max size of node.
       // This checks that at least the pivots or messages are outside of their bounds.
       assert((pivots.size() >= max_pivots) || (elements.size() >= max_messages));
-      // Create as many new leaves as pivots will allow and divide the elements equally between them.
-      int num_new_leaves = max_pivots;
+      // This size split does a good job of causing the resulting
+      // nodes to have size between 0.4 * MAX_NODE_SIZE and 0.6 * MAX_NODE_SIZE.
+      int num_new_leaves = (pivots.size() + elements.size())  / (10 * max_node_size / 24);
+      if (num_new_leaves < 2) {
+        num_new_leaves = 2;
+      }
       // Make sure nothing here is left after adding to leaves
       int things_per_new_leaf =
           (pivots.size() + elements.size() + num_new_leaves - 1) / num_new_leaves;
@@ -680,9 +683,6 @@ private:
                        typename pivot_map::iterator begin,
                        typename pivot_map::iterator end)
     {
-      // TODO epsilon might need to be calculated based on the nodes being merged.
-      // TODO If the merging of nodes moves the new node up a level, node_level needs to be decreased by 1.
-      // In the case of merge_small_children, the merged node(s) stay at the same level. 
       auto e = epsilon;
       auto l = node_level;
       node_pointer new_node = bet.ss->allocate(new node(e, l));
@@ -782,12 +782,16 @@ private:
     // flushes or splits as necessary.  If we split, return a
     // map with the new pivot keys pointing to the new nodes.
     // Otherwise return an empty map.
-    pivot_map flush(betree &bet, message_map &elts)
+    pivot_map flush(betree &bet, message_map &elts, float parent_epsilon)
     {
       // If this node is less than the tunable epsilon tree level
       // Checks for an epsilon update.
       if (node_level <= bet.tunable_epsilon_level) {
         add_write(bet);
+      } else if (epsilon != parent_epsilon) {
+        epsilon = parent_epsilon; 
+        // Recalculate pivots and message buffer sizes
+        max_pivots = calculate_max_pivots();
       }
 
       // REMEMBER
@@ -840,7 +844,8 @@ private:
           assert(elt_start == elt_end);
         }
         // Flush the messages from further down the tree.
-        pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts);
+        auto e = epsilon;
+        pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts, e);
         // If more leaves were created from the flush, update our pivots.
         if (!new_children.empty())
         {
@@ -893,7 +898,8 @@ private:
           auto elt_child_it = get_element_begin(child_pivot);
           auto elt_next_it = get_element_begin(next_pivot);
           message_map child_elts(elt_child_it, elt_next_it);
-          pivot_map new_children = child_pivot->second.child->flush(bet, child_elts);
+          auto e = epsilon;
+          pivot_map new_children = child_pivot->second.child->flush(bet, child_elts, e);
           elements.erase(elt_child_it, elt_next_it);
           if (!new_children.empty())
           {
@@ -1121,12 +1127,13 @@ public:
   {
     message_map tmp;
     tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
-    pivot_map new_nodes = root->flush(*this, tmp);
+    auto e = root->epsilon;
+    pivot_map new_nodes = root->flush(*this, tmp, e);
     if (new_nodes.size() > 0)
     {
-      auto e = root->epsilon;
-      auto l = root->node_level + 1;
-      root = ss->allocate(new node(e, l));
+      e = root->epsilon;
+      // The root's level should always be 0
+      root = ss->allocate(new node(e, 0));
       root->pivots = new_nodes;
     }
   }
