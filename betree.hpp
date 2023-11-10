@@ -347,11 +347,10 @@ private:
       }
     }
 
-    // returns true or false for whether the kv_pair is in the range of this node's elements
-    bool is_in_range(const std::pair<MessageKey<Key>, Message<Value>>& kv_pair) {
-	auto it = elements.lower_bound(kv_pair.first);
-	return (it != elements.end() && !(kv_pair.first < it->first));
-
+    // returns true or false for whether the key is in the range of this node's elements
+    bool is_in_range(const MessageKey<Key> &mkey) {
+	auto it = elements.lower_bound(mkey);
+	return (it != elements.end() && !(mkey < it->first));
     }
 
     bool is_leaf(void) const
@@ -581,17 +580,17 @@ private:
 		return;
 	}
 
-	uint64_t total_pivots = 0; // for counting grandchildren to adopt
+	uint64_t total_pivots = pivots.size(); // for counting grandchildren to adopt
 
-	// TODO: init vector for message_maps
+	std::vector<message_map> messages_to_fwd;
 
-	// Iterate over children and add count their pivots to assess how many
-	// grandchldren can be adopted
+	// Iterate over children and count their pivots to assess if
+	// we can adopt grandchildren from them
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
 	  auto endit = it;
-
-	  if (total_pivots + it->second.child->pivots.size() > max_pivots) {
-		  break;
+	  // if (current_pivot_size - 1 (for erasing parent) + potential_adoptee_count) > max_pivots
+	  if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
+		  break; // don't adopt the set of grandchildren
 	  }
 	  ++endit; // advance for erasing child
 
@@ -601,18 +600,13 @@ private:
 	    // get the pivot_map from child
 	    pivot_map grandchildren = it->second.child->pivots; // granchildren of this child
 	  
-    	    // get the message_map	  
+    	    // save the message_map	  
             message_map child_messages = it->second.child->elements;
-            // TODO: push_back child_messages onto the message_map vector
+	    messages_to_fwd.push_back(child_messages);
 
 	    // adopt sibling grandchildren
 	    pivots.insert(grandchildren.begin(), grandchildren.end());
 	
-	    // TODO: CHANGE - THIS INSERTS CHILD'S ELTS AT THIS NODE, NOT NEW ADOPTED CHILDREN
-	    // 		      FIGURE OUT HOW TO PARTITION THE ELTS CORRECTLY TO ADOPTEES
-	    // forward messages from child to newly adopted grandchild
-	    elements.insert(child_messages.begin(), child_messages.end());
-
 	    // Get the key of the next child to look at 
 	    auto next_child = next(it);
 	    Key key = next_child->first;
@@ -624,22 +618,35 @@ private:
 	  }
     	}
 
-	// TODO: iterate through all message_maps to fwd
-	// 	TODO: nested: iterate through all kv_pairs in each message_map
-	// 		TODO: nested: iterate through all pivots of this node (children)
-	// 			TODO: if child->is_in_range(kv_pair): apply(kv_pair) to that child
+	// iterate through all saved message_maps to fwd their messages
+	for (const auto &messageMap : messages_to_fwd) {
+	  for (auto fwd_it = messageMap.begin(); fwd_it != messageMap.end(); ++fwd_it){
+	    // iterate through children 
+	    for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+	      auto child = it->second.child;
+
+	      auto key = fwd_it.first;// key of message to fwd
+	
+	      // fwd key to proper child
+	      if (child->is_in_range(key)){
+	      	auto fwd_mssg = fwd_it.second;
+	        child->apply(key, fwd_mssg, bet.default_value);
+	      }			
+   	    }
+	  }
+	}
 
 	// After adoption, go through all children of this node and udpates child_size
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-		it.second.child_size =
+		it->second.child_size =
                 	it->second.child->pivots.size() +
                 	it->second.child->elements.size();
 	}
+    }
+   // --------------------------------------------------------------- //  
 
-	// TODO: iterate over children and recursivley call adopt()?
-    } 
 
-
+    // Merge Method
     node_pointer merge(betree &bet,
                        typename pivot_map::iterator begin,
                        typename pivot_map::iterator end)
