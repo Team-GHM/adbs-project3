@@ -255,8 +255,9 @@ private:
     uint64_t max_pivots;
     uint64_t max_messages;
     uint64_t node_level;
-    int operation_count;
-    int ops_before_epsilon_update;
+    uint64_t operation_count;
+    uint64_t const ops_before_epsilon_update;
+    uint64_t const window_size;
 
     node()
     : max_node_size(64)
@@ -266,24 +267,26 @@ private:
     , node_level(0)
     , operation_count(0)
     , ops_before_epsilon_update(100)
+    , window_size(100)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
       stat_tracker = window_stat_tracker();
     }
 
-    node(float e, uint64_t level)
+    node(float e, uint64_t level, uint64_t opsbeforeupdate = 100, uint64_t windowsize = 100)
     : max_node_size(64)
     , min_node_size(64 / 4)
     , min_flush_size(64 / 16)
     , epsilon(e)
     , node_level(level)
     , operation_count(0)
-    , ops_before_epsilon_update(100)
+    , ops_before_epsilon_update(opsbeforeupdate)
+    , window_size(windowsize)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
-      stat_tracker = window_stat_tracker();
+      stat_tracker = window_stat_tracker(window_size);
     }
 
     uint64_t calculate_max_pivots()
@@ -499,7 +502,7 @@ private:
         // Allocate a new node
         auto e = epsilon;
         auto l = node_level + 1;
-        node_pointer new_node = bet.ss->allocate(new node(e, l));
+        node_pointer new_node = bet.ss->allocate(new node(e, l, bet.ops_before_update, bet.window_size));
         // If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
         // Else if looping through elements...
@@ -557,7 +560,7 @@ private:
     {
       auto e = epsilon;
       auto l = node_level;
-      node_pointer new_node = bet.ss->allocate(new node(e, l));
+      node_pointer new_node = bet.ss->allocate(new node(e, l, bet.ops_before_update, bet.window_size));
       for (auto it = begin; it != end; ++it)
       {
         new_node->elements.insert(it->second.child->elements.begin(),
@@ -961,21 +964,29 @@ private:
   Value default_value;
   float const starting_epsilon;
   uint64_t tunable_epsilon_level;
+  uint64_t const ops_before_update;
+  uint64_t const window_size;
   
 public:
   betree(swap_space *sspace,
-         uint64_t maxnodesize = DEFAULT_MAX_NODE_SIZE,
-         uint64_t minnodesize = DEFAULT_MAX_NODE_SIZE / 4,
-         uint64_t minflushsize = DEFAULT_MIN_FLUSH_SIZE)
+         uint64_t maxnodesize = 64,
+         uint64_t minnodesize = 64 / 4,
+         uint64_t minflushsize = 64/ 16, 
+         float startingepsilon = 0.4, 
+         uint64_t tunableepsilonlevel = 0,
+         uint64_t opsbeforeupdate = 100,
+         uint64_t windowsize = 100)
       : ss(sspace),
         min_flush_size(minflushsize),
         max_node_size(maxnodesize),
         min_node_size(minnodesize),
-        starting_epsilon(0.4),
-        tunable_epsilon_level(0)
+        starting_epsilon(startingepsilon),
+        tunable_epsilon_level(tunableepsilonlevel),
+        ops_before_update(opsbeforeupdate),
+        window_size(windowsize)
   {
-   
-    root = ss->allocate(new node(0.4, 0));
+    // The root is always at level 0 in the tree.
+    root = ss->allocate(new node(starting_epsilon, 0, ops_before_update, window_size));
   }
 
   // Wrapper methods to call recursive methods to 
@@ -1005,7 +1016,7 @@ public:
     {
       e = root->epsilon;
       // The root's level should always be 0
-      root = ss->allocate(new node(e, 0));
+      root = ss->allocate(new node(e, 0, ops_before_update, window_size));
       root->pivots = new_nodes;
     }
   }
