@@ -257,6 +257,7 @@ private:
     uint64_t node_level;
     int operation_count;
     int ops_before_epsilon_update;
+    uint64_t node_id;
 
     node()
     : max_node_size(64)
@@ -270,6 +271,7 @@ private:
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
       stat_tracker = window_stat_tracker();
+      node_id = -1;
     }
 
     node(float e, uint64_t level)
@@ -284,6 +286,7 @@ private:
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
       stat_tracker = window_stat_tracker();
+      node_id = -1;
     }
 
     uint64_t calculate_max_pivots()
@@ -546,7 +549,12 @@ private:
         auto e = epsilon;
         auto l = node_level + 1;
         node_pointer new_node = bet.ss->allocate(new node(e, l));
-        // If there are still pivots to move...
+
+	// set node_id for new node (which is the target int of the node_pointer)
+	auto new_node_id = new_node.get_target();
+	new_node->node_id = new_node_id;
+
+	// If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
         // Else if looping through elements...
         // result[elt_idx->first.key] = child_info(new_node, 0 + 0)
@@ -627,9 +635,20 @@ private:
 	uint64_t total_pivots = pivots.size(); // for counting grandchildren to adopt
 	std::vector<message_map> messages_to_fwd;
 
+
+	std::cout << "there are " << std::to_string(total_pivots) << " children to asses for erasure" << std::endl;
+
+	int itr_count = 0;
+
+
 	// Iterate over children and count their pivots to assess if
 	// we can adopt grandchildren from them
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+
+	  itr_count += 1;
+
+	  // TODO: make sure not to assess newly adopted children
+
 	  auto endit = it;
 	  // if (current_pivot_size - 1 (for erasing parent) + potential_adoptee_count) > max_pivots
 	  if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
@@ -660,6 +679,12 @@ private:
 
 	     for (const auto &child_message : child_messages){
 		bool applied = false;
+		
+		//auto mkey = child_message.first;
+		//auto msg = child_message.second;
+		
+		//apply(mkey, msg);	
+		
 		for (auto &grandchild : grandchildren) {
 			
 			if (grandchild.second.child->is_in_range(child_message.first)) {
@@ -697,58 +722,13 @@ private:
 	      std::cout << "performed adopt. total_pivots after adopt: " << std::to_string(total_pivots) << std::endl;
 	      std::cout << "---------------------------------------------" << std::endl;
 	      std::cout << "" << std::endl;
-	      it = next_child;
-	    //it = pivots.lower_bound(key); // advance the iterator to the next non-erased child
+	      
+	      it = next_child;// set iterator for next child TODO: make sure i'm not skipping any children
 	    }
 	  }
     	}
 
-	// iterate through all saved message_maps to fwd their messages
-//	for (const auto &messageMap : messages_to_fwd) {
-//	  for (auto fwd_it = messageMap.begin(); fwd_it != messageMap.end(); ++fwd_it){
-//		 auto key = fwd_it->first;// key of message to fwd
-		
-//		 apply(key, fwd_it->second, bet.default_value);
-
-		/*
-		auto pivot_itr = get_pivot(key);
-		node_pointer childNode = pivot_itr->second.child;
-		bool fwded = false;
-		if (!(key < pivot_itr->first || pivot_itr->first < key)) {
-			fwded = true;
-			childNode->apply(key, fwd_it->second, bet.default_value);
-		}
-		*/
-	/*
-	    auto key = fwd_it->first;// key of message to fwd
- 	    bool fwded = false;
-	    // iterate through children 
-	    for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-	      auto child = it->second.child;
-
-	
-	      // fwd key to proper child
-	      if (child->is_in_range(key)){
-		fwded = true;
-	      	auto fwd_mssg = fwd_it->second;
-	        child->apply(key, fwd_mssg, bet.default_value);
-	      }
-	      if(fwded){
-		  std::cout << "forwarded message successfuly" << std::endl;
-	          break;	
-	      }	
-   	    }
-	    */
-		 /*
-	    if (!fwded)
-		    std::cout << "didn't find a chld in the range to fwd to" << std::endl;
-	    else {
-		std::cout << "forwarded message successfuly" << std::endl;
-	    }*/
-		  
-//	  }
-//	}
-
+	std::cout << "Iterated over " << std::to_string(itr_count) << " children ...." << std::endl;
 	// After adoption, go through all children of this node and udpates child_size
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
 		it->second.child_size =
@@ -759,6 +739,8 @@ private:
    // --------------------------------------------------------------- //  
 
 
+
+
     // Merge Method
     node_pointer merge(betree &bet,
                        typename pivot_map::iterator begin,
@@ -767,6 +749,12 @@ private:
       auto e = epsilon;
       auto l = node_level;
       node_pointer new_node = bet.ss->allocate(new node(e, l));
+      
+      // set node_id for new node (which is the target int of the node_pointer)
+      auto new_node_id = new_node.get_target();
+      new_node->node_id = new_node_id;      
+      
+      
       for (auto it = begin; it != end; ++it)
       {
         new_node->elements.insert(it->second.child->elements.begin(),
@@ -1148,6 +1136,8 @@ private:
       serialize(fs, context, epsilon);
       fs << "node_level:" << std::endl;
       serialize(fs, context, node_level);
+      fs << "node_id:" << std::endl;
+      serialize(fs, context, node_id);
     }
 
     void _deserialize(std::iostream &fs, serialization_context &context)
@@ -1161,6 +1151,8 @@ private:
       deserialize(fs, context, epsilon);
       fs >> dummy;
       deserialize(fs, context, node_level);
+      fs >> dummy;
+      deserialize(fs, context, node_id);    
     }
   };
 
@@ -1188,6 +1180,10 @@ public:
   {
    
     root = ss->allocate(new node(0.4, 0));
+
+    // set root node_id
+    auto root_id = root.get_target();
+    root->node_id = root_id;
   }
 
   // Wrapper methods to call recursive methods to 
@@ -1219,6 +1215,14 @@ public:
       // The root's level should always be 0
       root = ss->allocate(new node(e, 0));
       root->pivots = new_nodes;
+
+      // set new root node_id
+      auto new_root_id = root.get_target();
+      root->node_id = new_root_id;	      
+
+
+      //std::cout << "new root id: " << std::to_string(new_root_id) << std::endl;
+
     }
   }
 
