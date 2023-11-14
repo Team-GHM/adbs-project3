@@ -289,6 +289,10 @@ private:
       node_id = -1;
     }
 
+    uint64_t get_node_id(){
+	    return node_id;
+    }
+
     uint64_t calculate_max_pivots()
     {
   
@@ -636,6 +640,14 @@ private:
 	std::vector<message_map> messages_to_fwd;
 
 
+	// First get all the IDs of the children to make sure iterate
+	// over children before adoption 
+	std::vector<uint64_t> cur_child_ids;
+	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+		uint64_t cur_id = it->second.child->get_node_id();
+		cur_child_ids.push_back(cur_id);
+	}
+
 	std::cout << "there are " << std::to_string(total_pivots) << " children to asses for erasure" << std::endl;
 
 	int itr_count = 0;
@@ -645,9 +657,21 @@ private:
 	// we can adopt grandchildren from them
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
 
+	  // make sure the child we're looking at isn't newly adopted
+	  uint64_t cur_id = it->second.child->get_node_id();
+	  bool not_adopted = false;
+	  for (auto id : cur_child_ids) {
+		if (id == cur_id) {
+			not_adopted = true;
+			break;
+		}
+	  }
+	  if(!not_adopted) {
+		  continue;
+	  }
+
 	  itr_count += 1;
 
-	  // TODO: make sure not to assess newly adopted children
 
 	  auto endit = it;
 	  // if (current_pivot_size - 1 (for erasing parent) + potential_adoptee_count) > max_pivots
@@ -676,8 +700,17 @@ private:
               message_map child_messages = child_to_erase->elements;
 	      messages_to_fwd.push_back(child_messages);
 
+	      // flush child's messages
+	      pivot_map new_children = child_to_erase->flush(bet, child_messages);
+	      if (!new_children.empty()) {
+		 std::cout << "new children were made from flush" << std::endl;
+	   	 pivots.erase(it);
+	         pivots.insert(new_children.begin(), new_children.end());
+		 // TODO: add new_children's id to 
+	      }
 
-	     for (const auto &child_message : child_messages){
+
+	     /*for (const auto &child_message : child_messages){
 		bool applied = false;
 		
 		//auto mkey = child_message.first;
@@ -698,7 +731,7 @@ private:
 		else {
 			std::cout << "NOT applied" << std::endl;
 		}
-	     }
+	     }*/
 
 
 	      // adopt sibling grandchildren
@@ -710,20 +743,25 @@ private:
 	      }
 		    
 	      // Get the key of the next child to look at 
-	      auto next_child = next(it);
-	      //Key key = next_child->first;
+	      //auto next_child = next(it);
+	     
 		
 	      // Erase the grandchild's parent
 	      child_to_erase->pivots.clear();
 	      child_to_erase->elements.clear();
 
-	      //pivots.erase(it, endit); // don't point to child
+	      pivots.erase(it, endit); // don't point to child
+	     
+	     
+	      // update pivot count
 	      total_pivots = pivots.size();
+	      
+	      
 	      std::cout << "performed adopt. total_pivots after adopt: " << std::to_string(total_pivots) << std::endl;
 	      std::cout << "---------------------------------------------" << std::endl;
 	      std::cout << "" << std::endl;
 	      
-	      it = next_child;// set iterator for next child TODO: make sure i'm not skipping any children
+	      //it = next_child;// set iterator for next child TODO: make sure i'm not skipping any children
 	    }
 	  }
     	}
