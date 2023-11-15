@@ -1215,10 +1215,6 @@ public:
       // set new root node_id
       auto new_root_id = root.get_target();
       root->node_id = new_root_id;	      
-
-
-      //std::cout << "new root id: " << std::to_string(new_root_id) << std::endl;
-
     }
   }
 
