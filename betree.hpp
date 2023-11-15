@@ -334,15 +334,14 @@ private:
 
     void set_epsilon(float e, betree &bet) {
 
-      //std::cout << "set_epsilon() called. prev_max_pivots: " << std::to_string(max_pivots) << std::endl;
       auto prev_max_pivots = max_pivots;
 		    
       epsilon = e;
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
-      //std::cout << "max_pivots after e update: " << std::to_string(max_pivots) << std::endl;
+      
       if (max_pivots > prev_max_pivots) {
-      	 adopt(bet);
+      	 adopt(bet); // shorten tree
       }
     }
 
@@ -371,39 +370,6 @@ private:
           set_epsilon(new_epsilon, bet);
           operation_count = 0;
       }
-    }
-
-    // returns true or false for whether the key is in the range of this node's elements
-    bool is_in_range(const MessageKey<Key> &mkey) {
-	if (elements.empty()) {
-		return false;
-	}
-
-	//auto iter = elements.upper_bound(mkey.range_end());
-	//if (iter != elements.begin())
-
-	auto firstElt = elements.begin();
-	auto firstKey = firstElt->first;
-	auto low_it = elements.lower_bound(firstKey);
-
-	auto lastElt = elements.end();
-	lastElt--;
-	auto lastKey = lastElt->first;
-	auto end_it = elements.lower_bound(lastKey);
-	
-
-	bool in_range =  (!(mkey < low_it->first) && (mkey < end_it->first));	
-
-	if (mkey == end_it->first){
-		in_range = true;
-	}
-
-	//auto low_it = elements.lower_bound(mkey);
-        //auto end_it = elements.upper_bound(mkey);
-	//bool in_range = 
-	//bool in_range =  (!(mkey < low_it->first) && (mkey < end_it->first));
-	
-	return in_range;
     }
 
     bool is_leaf(void) const
