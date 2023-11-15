@@ -343,6 +343,10 @@ private:
       }
     }
 
+    uint64_t get_epsilon() {
+	return epsilon;
+    }
+
     void add_read(betree &bet) {
 
       stat_tracker.add_read();
@@ -643,8 +647,11 @@ private:
 	// First get all the IDs of the children to make sure iterate
 	// over children before adoption 
 	std::vector<uint64_t> cur_child_ids;
+	std::map<uint64_t, Key> id_key_map;
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
 		uint64_t cur_id = it->second.child->get_node_id();
+		auto cur_key = it->first;
+		id_key_map[cur_id] = cur_key;
 		cur_child_ids.push_back(cur_id);
 	}
 
@@ -655,10 +662,20 @@ private:
 
 	// Iterate over children and count their pivots to assess if
 	// we can adopt grandchildren from them
-	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+	for (uint64_t i = 0; i < cur_child_ids.size(); i++) {
+	//for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+	  
 
+	  auto curr_id = cur_child_ids[i];
+	  auto piv_key = id_key_map[curr_id];
+	  auto it = pivots[piv_key];
+
+		std::cout << "starting an iteration through a pivot" << std::endl;
 	  // make sure the child we're looking at isn't newly adopted
-	  uint64_t cur_id = it->second.child->get_node_id();
+	  //uint64_t cur_id = it.second.child->get_node_id();
+	  
+	  uint64_t cur_id = it.child->get_node_id();
+
 	  bool not_adopted = false;
 	  for (auto id : cur_child_ids) {
 		if (id == cur_id) {
@@ -666,23 +683,25 @@ private:
 			break;
 		}
 	  }
-	  if(!not_adopted) {
-		  continue;
-	  }
+	  if(!not_adopted) { continue; }
 
 	  itr_count += 1;
 
 
-	  auto endit = it;
+	  //auto endit = it;
+	  
+	  
 	  // if (current_pivot_size - 1 (for erasing parent) + potential_adoptee_count) > max_pivots
-	  if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
+	  //if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
+ 	  if ( ((total_pivots - 1) + it.child->pivots.size()) > max_pivots) {
 		  continue; // don't adopt the set of grandchildren
 	  }
-	  ++endit; // advance for erasing child
+	  //++endit; // advance for erasing child
 
-	  if (endit !=it) {
+	  //if (endit !=it) {
 
-	    auto child_to_erase = it->second.child;
+	    //auto child_to_erase = it->second.child;
+	    auto child_to_erase = it.child;
 	    
 	    // Skip is child is leaf, there's no grandchildren to adopt
 	    if (child_to_erase->is_leaf()) {
@@ -701,74 +720,89 @@ private:
 	      messages_to_fwd.push_back(child_messages);
 
 	      // flush child's messages
-	      pivot_map new_children = child_to_erase->flush(bet, child_messages);
+	      auto e = child_to_erase->get_epsilon();
+	      pivot_map new_children = child_to_erase->flush(bet, child_messages, e);
+	      //bool new_chil = false;
+	      
+	      
+	      
 	      if (!new_children.empty()) {
 		 std::cout << "new children were made from flush" << std::endl;
-	   	 pivots.erase(it);
-	         pivots.insert(new_children.begin(), new_children.end());
-		 // TODO: add new_children's id to 
+	   	 
+		 
+		 for (auto erase_it = pivots.begin(); erase_it != pivots.end(); ++erase_it) {
+		   if(erase_it->first == piv_key) {
+			 pivots.erase(erase_it);
+			 break;
+		   }
+		 }
+	         
+		 
+		 
+		 pivots.insert(new_children.begin(), new_children.end());
+		 //new_chil = true;
+		 // TODO: add new_children's id to the cur_child_ids? 
+	      	 std::cout << "erased old child and inserted new one" << std::endl;
 	      }
+	      else {std::cout << "no new children made!" << std::endl; }
 
-
-	     /*for (const auto &child_message : child_messages){
-		bool applied = false;
-		
-		//auto mkey = child_message.first;
-		//auto msg = child_message.second;
-		
-		//apply(mkey, msg);	
-		
-		for (auto &grandchild : grandchildren) {
-			
-			if (grandchild.second.child->is_in_range(child_message.first)) {
-				grandchild.second.child->apply(child_message.first, child_message.second, bet.default_value);	
-				applied = true;
-			}
-		}
-		if (applied) {
-			std::cout << "successfully applied" << std::endl;
-		}
-		else {
-			std::cout << "NOT applied" << std::endl;
-		}
-	     }*/
 
 
 	      // adopt sibling grandchildren
 	      pivots.insert(grandchildren.begin(), grandchildren.end());
-	    
+	   
+	      std::cout << "adopted grandchildren .." << std::endl;
+
     	      // decrement node_level of adopted children
 	      for (auto adopt_it = grandchildren.begin(); adopt_it != grandchildren.end(); ++adopt_it) {
 		  adopt_it->second.child->decrement_node_level();
 	      }
 		    
-	      // Get the key of the next child to look at 
-	      //auto next_child = next(it);
-	     
+	      std::cout << "decremented node level .." << std::endl;
 		
 	      // Erase the grandchild's parent
 	      child_to_erase->pivots.clear();
-	      child_to_erase->elements.clear();
+	      //child_to_erase->elements.clear();
 
-	      pivots.erase(it, endit); // don't point to child
-	     
+	      std::cout << "cleared child_to_erase pivs and elts .." << std::endl;
+	      //pivots.erase(it, endit); // don't point to child
+	      //pivots.erase(it);
+
+	      // stop pointing to child ...
+
+	      // TODO: erase the whole kv pair
+	      //auto child_node
+	      //pivots.erase(piv_key);
+	      //for (uint64_t j = 0; j < cur_child_ids.size(); j++) {
+		
+	      //}
+	      for (auto erase_it = pivots.begin(); erase_it != pivots.end(); ++erase_it) {
+		if (erase_it->first == piv_key){
+		   pivots.erase(erase_it);
+		   break;
+		}
+	      }
+
+
+	      std::cout << "erased it pivot .." << std::endl;
 	     
 	      // update pivot count
 	      total_pivots = pivots.size();
-	      
+	     
 	      
 	      std::cout << "performed adopt. total_pivots after adopt: " << std::to_string(total_pivots) << std::endl;
 	      std::cout << "---------------------------------------------" << std::endl;
 	      std::cout << "" << std::endl;
-	      
-	      //it = next_child;// set iterator for next child TODO: make sure i'm not skipping any children
+	     
+	      // TODO: properly iterate to the next pivot   maybe i should change the loop to iterate via a simple for loop for the count of pivots, and find the pivot via node_id 
 	    }
-	  }
+	  //}
     	}
 
 	std::cout << "Iterated over " << std::to_string(itr_count) << " children ...." << std::endl;
 	// After adoption, go through all children of this node and udpates child_size
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+		std::cout << "adjusting size for a pivot ... " << std::endl;
 		it->second.child_size =
                 	it->second.child->pivots.size() +
                 	it->second.child->elements.size();
