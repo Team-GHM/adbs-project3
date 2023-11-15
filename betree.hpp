@@ -629,6 +629,7 @@ private:
     // -----------------------------------------------------------------------------------------
     void adopt(betree &bet) {
 	
+	    
 	// Nothing to adopt if leaf
 	if (is_leaf()) {
         	return;
@@ -647,67 +648,48 @@ private:
 	// First get all the IDs of the children to make sure iterate
 	// over children before adoption 
 	std::vector<uint64_t> cur_child_ids;
-	std::map<uint64_t, Key> id_key_map;
+	//std::map<uint64_t, Key> id_key_map;
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
 		uint64_t cur_id = it->second.child->get_node_id();
-		auto cur_key = it->first;
-		id_key_map[cur_id] = cur_key;
+		//auto cur_key = it->first;
+		//id_key_map[cur_id] = cur_key;
 		cur_child_ids.push_back(cur_id);
 	}
+	uint64_t size_before_adopt = cur_child_ids.size();
 
 	std::cout << "there are " << std::to_string(total_pivots) << " children to asses for erasure" << std::endl;
 
-	int itr_count = 0;
 
+	//int adopt_ind = 0;
 
 	// Iterate over children and count their pivots to assess if
 	// we can adopt grandchildren from them
-	for (uint64_t i = 0; i < cur_child_ids.size(); i++) {
-	//for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-	  
+	for (uint64_t i = 0; i < size_before_adopt; i ++) {
 
-	  auto curr_id = cur_child_ids[i];
-	  auto piv_key = id_key_map[curr_id];
-	  auto it = pivots[piv_key];
-
-		std::cout << "starting an iteration through a pivot" << std::endl;
-	  // make sure the child we're looking at isn't newly adopted
-	  //uint64_t cur_id = it.second.child->get_node_id();
-	  
-	  uint64_t cur_id = it.child->get_node_id();
-
-	  bool not_adopted = false;
-	  for (auto id : cur_child_ids) {
-		if (id == cur_id) {
-			not_adopted = true;
+	  // iterate till we reach the first pivot in the vector or the end
+	  auto it = pivots.begin();
+	  while (true) {
+		auto cur_id = it->second.child->get_node_id();
+		if (cur_id == cur_child_ids[0]){
 			break;
 		}
+		it = next(it);
+		if (it == pivots.end()){ break; }
 	  }
-	  if(!not_adopted) { continue; }
 
-	  itr_count += 1;
-
-
-	  //auto endit = it;
+	  if (it != pivots.end()) {
 	  
-	  
-	  // if (current_pivot_size - 1 (for erasing parent) + potential_adoptee_count) > max_pivots
-	  //if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
- 	  if ( ((total_pivots - 1) + it.child->pivots.size()) > max_pivots) {
+	    if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
 		  continue; // don't adopt the set of grandchildren
-	  }
-	  //++endit; // advance for erasing child
+	    }
 
-	  //if (endit !=it) {
-
-	    //auto child_to_erase = it->second.child;
-	    auto child_to_erase = it.child;
-	    
+	    auto child_to_erase = it->second.child;
+   
 	    // Skip is child is leaf, there's no grandchildren to adopt
 	    if (child_to_erase->is_leaf()) {
 		    continue;
 	    }
-
+	
 	    pivot_map grandchildren = child_to_erase->pivots; // granchildren of this child
 	 
 	    if (grandchildren.size() > 0) {
@@ -719,73 +701,33 @@ private:
               message_map child_messages = child_to_erase->elements;
 	      messages_to_fwd.push_back(child_messages);
 
-	      // flush child's messages
-	      auto e = child_to_erase->get_epsilon();
-	      pivot_map new_children = child_to_erase->flush(bet, child_messages, e);
-	      //bool new_chil = false;
-	      
-	      
-	      
-	      if (!new_children.empty()) {
-		 std::cout << "new children were made from flush" << std::endl;
-	   	 
-		 
-		 for (auto erase_it = pivots.begin(); erase_it != pivots.end(); ++erase_it) {
-		   if(erase_it->first == piv_key) {
-			 pivots.erase(erase_it);
-			 break;
-		   }
-		 }
-	         
-		 
-		 
-		 pivots.insert(new_children.begin(), new_children.end());
-		 //new_chil = true;
-		 // TODO: add new_children's id to the cur_child_ids? 
-	      	 std::cout << "erased old child and inserted new one" << std::endl;
+	      int cnt = 0;
+	      for (auto ti = grandchildren.begin(); ti != grandchildren.end(); ti++){
+		cnt++;
+		auto thekey = ti->first;
+		std::cout << "the string is: " << std::to_string(thekey) << std::endl;
 	      }
-	      else {std::cout << "no new children made!" << std::endl; }
+	      std::cout << "the count of granchdilren: " << std::to_string(cnt) << std::endl;
 
 
+	      // stop pointing to child
+	      pivots.erase(it);
+              child_to_erase->pivots.clear();// clear where pivot points
+              child_to_erase->elements.clear();
 
 	      // adopt sibling grandchildren
-	      pivots.insert(grandchildren.begin(), grandchildren.end());
-	   
+	      pivots.insert(grandchildren.begin(), grandchildren.end()); 
+	      
+	      // remove element at 0 index of cur_child_ids and push everything back
+	      cur_child_ids.erase(cur_child_ids.begin());
+	      
 	      std::cout << "adopted grandchildren .." << std::endl;
-
+		
     	      // decrement node_level of adopted children
 	      for (auto adopt_it = grandchildren.begin(); adopt_it != grandchildren.end(); ++adopt_it) {
 		  adopt_it->second.child->decrement_node_level();
 	      }
 		    
-	      std::cout << "decremented node level .." << std::endl;
-		
-	      // Erase the grandchild's parent
-	      child_to_erase->pivots.clear();
-	      //child_to_erase->elements.clear();
-
-	      std::cout << "cleared child_to_erase pivs and elts .." << std::endl;
-	      //pivots.erase(it, endit); // don't point to child
-	      //pivots.erase(it);
-
-	      // stop pointing to child ...
-
-	      // TODO: erase the whole kv pair
-	      //auto child_node
-	      //pivots.erase(piv_key);
-	      //for (uint64_t j = 0; j < cur_child_ids.size(); j++) {
-		
-	      //}
-	      for (auto erase_it = pivots.begin(); erase_it != pivots.end(); ++erase_it) {
-		if (erase_it->first == piv_key){
-		   pivots.erase(erase_it);
-		   break;
-		}
-	      }
-
-
-	      std::cout << "erased it pivot .." << std::endl;
-	     
 	      // update pivot count
 	      total_pivots = pivots.size();
 	     
@@ -794,12 +736,19 @@ private:
 	      std::cout << "---------------------------------------------" << std::endl;
 	      std::cout << "" << std::endl;
 	     
-	      // TODO: properly iterate to the next pivot   maybe i should change the loop to iterate via a simple for loop for the count of pivots, and find the pivot via node_id 
 	    }
-	  //}
+	  }
     	}
 
-	std::cout << "Iterated over " << std::to_string(itr_count) << " children ...." << std::endl;
+
+	// Apply all messages to this node: 
+	for (auto &mssg_map : messages_to_fwd) {
+	    
+	    // Apply each message in our elements to ourself (meaning this node)
+            for (auto it = mssg_map.begin(); it != mssg_map.end(); ++it)
+              apply(it->first, it->second, bet.default_value);
+	}
+
 	// After adoption, go through all children of this node and udpates child_size
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
 		std::cout << "adjusting size for a pivot ... " << std::endl;
@@ -807,9 +756,57 @@ private:
                 	it->second.child->pivots.size() +
                 	it->second.child->elements.size();
 	}
+
     }
    // --------------------------------------------------------------- //  
 
+/*
+    void push_messages(betree &bet, message_map &elts)
+    {
+        // If this node is less than the tunable epsilon tree level
+        //if (node_level <= bet.tunable_epsilon_level)
+        //{
+        //    add_write(bet);
+        //}
+
+
+        if (elts.size() == 0)
+        {
+            debug(std::cout << "Done (empty input)" << std::endl);
+            return;
+        }
+
+
+
+        // Apply each message in our elements to ourself (meaning this node)
+        for (auto it = elts.begin(); it != elts.end(); ++it)
+            apply(it->first, it->second, bet.default_value);
+
+        // Push down messages to children
+        for (auto it = pivots.begin(); it != pivots.end(); ++it)
+        {
+            auto elt_child_it = get_element_begin(it);
+            auto elt_next_it = get_element_begin(next(it));
+            message_map child_elts(elt_child_it, elt_next_it);
+
+            // Flush messages to the child
+            auto e = epsilon;
+            it->second.child->flush(bet, child_elts, e);
+
+            // If more leaves were created from the flush, update our pivots.
+            if (!it->second.child->pivots.empty())
+            {
+            it->second.child_size =
+                it->second.child->pivots.size() +
+                it->second.child->elements.size();
+            }
+        }
+
+        debug(std::cout << "Done flushing " << this << std::endl);
+    }
+
+
+*/
 
 
 
