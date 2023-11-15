@@ -34,15 +34,6 @@ void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
     std::string line;
     std::vector<uint64_t> queryKeys; // Store the keys to be queried
 
-    /* while (std::getline(file, line)) {
-        uint64_t key;
-        std::string value;
-        std::istringstream iss(line);
-        if (iss >> key >> value) {
-            b.update(key, value);
-            queryKeys.push_back(key); // Add the key to the queryKeys vector
-        }
-    }*/
     srand(random_seed);
 
     std::vector<std::pair<uint64_t, double>> throughputData;  // Stores (iteration, throughput) pairs
