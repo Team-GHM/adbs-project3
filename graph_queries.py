@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 # Load the data from the output file
-with open('throughput.txt', 'r') as file:
+with open('ops_times.txt', 'r') as file:
     lines = file.readlines()
 
 nops = []
@@ -14,9 +14,9 @@ for line in lines:
 
 # Create the time series graph
 plt.figure(figsize=(10,8))
-plt.plot(nops, throughputs, label='Time taken by operations')
+plt.plot(nops, throughputs, label='Average time taken by operations')
 plt.xlabel('nops')
-plt.ylabel('Time taken to for one operation (μs)')
+plt.ylabel('Average time taken for 100 operations (μs)')
 plt.title('Time taken to perform nops')
 plt.legend()
 plt.grid()

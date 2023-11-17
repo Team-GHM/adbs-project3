@@ -20,19 +20,18 @@ void timer_stop(uint64_t &timer)
     timer += 1000000 * t.tv_sec + t.tv_usec;
 }
 
-void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t number_of_distinct_keys, uint64_t random_seed, const char* outputFileName)
+void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t number_of_distinct_keys, uint64_t random_seed, const char* outputFileName, const char* outputFileName2)
 {
-    std::vector<uint64_t> times;
     std::vector<double> throughputs;
+    std::vector<double> ops_times;
+    std::string line;
+    std::vector<uint64_t> queryKeys; // Store the keys to be queried
 
     // Pre-load the tree with data
-    std::ifstream file("random_keys.txt");
+    std::ifstream file("skewed_keys.txt");
     if (!file) {
         std::cerr << "Error: Could not open the file." << std::endl;
     }
-
-    std::string line;
-    std::vector<uint64_t> queryKeys; // Store the keys to be queried
 
     while (std::getline(file, line)) {
         uint64_t key;
@@ -68,10 +67,9 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
             timer_start(timers);
             std::string result = b.query(t);
             timer_stop(timers);
-            //double timer_us = timers / 1000;
-            double throughput2 = timers;
-            times.push_back(i + 1);
-            throughputs.push_back(throughput2);
+            double query_timers = timers;
+            ops_times.push_back(query_timers);
+            throughputs.push_back(1.0/(query_timers)); //Converting into seconds
             nops_query--;
             }
         }
@@ -84,10 +82,10 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
             b.update(t, value);
             timer_stop(timers2);
             nops_update--;
-            //double timer_us = timers2 / 1000000;
-            double throughput3 = timers2;
-            times.push_back(i + 1);
-            throughputs.push_back(throughput3);
+            double update_timers = timers2;
+            ops_times.push_back(update_timers);
+            throughputs.push_back(1.0/(update_timers));
+            printf("# overall: %ld %ld, %f\n", nops, overall_timer, 1.0/(update_timers));
         }
     }
     timer_stop(overall_timer); 
@@ -96,11 +94,53 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
     std::ofstream outputFile(outputFileName);
     if (outputFile.is_open())
     {
-        for (size_t i = 0; i < times.size(); i++)
-        {
-            outputFile << times[i] << " " << throughputs[i] << "\n";
+        int cnt = 0;
+        for(int i=0; i<ops_times.size(); i+=100) {
+            
+            cnt++;
+            double total = 0;
+            
+            for(int j=0; j<100 && i+j < ops_times.size(); j++) {
+                total += ops_times[i+j]; 
+            }
+
+            double average = total / 100;
+        
+            // Output average
+            std::cout << "Average time for queries " << i << " to " << i+99 << ": " << average << std::endl;
+            outputFile << cnt << " " << average << "\n";
         }
+        
         outputFile.close();
+    }
+    else
+    {
+        std::cerr << "Failed to open output file for writing." << std::endl;
+        exit(1);
+    }
+
+    std::ofstream outputFile2(outputFileName2);
+    if (outputFile2.is_open())
+    {
+        int cnt = 0;
+        for(int i=0; i<throughputs.size(); i+=100) {
+            
+            cnt++;
+            double total2 = 0;
+            
+            for(int j=0; j<100 && i+j < throughputs.size(); j++) {
+                total2 += throughputs[i+j]; 
+                std::cout << " Throughput for queries " << i <<  ": " << total2 << std::endl;
+            }
+
+            double average = total2 / 100;
+        
+            // Output average
+            std::cout << "Average throughput for queries " << i << " to " << i+99 << ": " << average << std::endl;
+            outputFile2 << cnt << " " << average << "\n";
+        }
+        
+        outputFile2.close();
     }
     else
     {
@@ -223,8 +263,9 @@ int main(int argc, char **argv)
     swap_space sspace(&ofpobs, cache_size);
     betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
 
-    char* outputFileName = "throughput.txt"; // Name of the output file
-    benchmark_queries(b, nops, number_of_distinct_keys, random_seed, outputFileName);
+    char* outputFileName = "ops_times.txt"; // Name of the output file
+    char* outputFileName2 = "throughput.txt";
+    benchmark_queries(b, nops, number_of_distinct_keys, random_seed, outputFileName, outputFileName2);
 
     return 0;
 }
