@@ -1086,11 +1086,11 @@ private:
       serialize(fs, context, pivots);
       fs << "elements:" << std::endl;
       serialize(fs, context, elements);
-      fs << "epsilon:" << std::endl;
+      fs << "epsilon: ";
       serialize(fs, context, epsilon);
-      fs << "node_level:" << std::endl;
+      fs << "\nnode_level: ";
       serialize(fs, context, node_level);
-      fs << "node_id:" << std::endl;
+      fs << "\nnode_id: ";
       serialize(fs, context, node_id);
     }
 
