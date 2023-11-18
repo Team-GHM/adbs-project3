@@ -258,7 +258,9 @@ private:
     uint64_t operation_count;
     uint64_t const ops_before_epsilon_update;
     uint64_t const window_size;
+    uint64_t node_id;
 
+    
     node()
     : max_node_size(64)
     , min_node_size(64 / 4)
@@ -268,6 +270,7 @@ private:
     , operation_count(0)
     , ops_before_epsilon_update(100)
     , window_size(100)
+    , node_id(-1)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -283,10 +286,18 @@ private:
     , operation_count(0)
     , ops_before_epsilon_update(opsbeforeupdate)
     , window_size(windowsize)
+    , node_id(-1)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
       stat_tracker = window_stat_tracker(window_size);
+    }
+
+    uint64_t get_node_id(){
+	    return node_id;
+    }
+    void set_node_id(uint64_t new_id){
+	node_id = new_id;
     }
 
     uint64_t calculate_max_pivots()
@@ -502,8 +513,17 @@ private:
         // Allocate a new node
         auto e = epsilon;
         auto l = node_level + 1;
-        node_pointer new_node = bet.ss->allocate(new node(e, l, bet.ops_before_update, bet.window_size));
-        // If there are still pivots to move...
+
+	node_pointer new_node = bet.ss->allocate(new node(e, l, bet.ops_before_update, bet.window_size));
+
+	auto new_node_id = bet.glob_id_inc++;	
+	std::cout << " the auto new_node_id: " << std::to_string(new_node_id) << std::endl;
+	new_node->set_node_id(new_node_id);
+
+	auto new_id = new_node->node_id;
+	std::cout << "new node_id: " << std::to_string(new_id) << std::endl;
+	
+	// If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
         // Else if looping through elements...
         // result[elt_idx->first.key] = child_info(new_node, 0 + 0)
@@ -939,6 +959,8 @@ private:
       serialize(fs, context, epsilon);
       fs << "\nnode_level: ";
       serialize(fs, context, node_level);
+      fs << "\nnode_id: ";
+      serialize(fs, context, node_id);
     }
 
     void _deserialize(std::iostream &fs, serialization_context &context)
@@ -952,6 +974,8 @@ private:
       deserialize(fs, context, epsilon);
       fs >> dummy;
       deserialize(fs, context, node_level);
+      fs >> dummy;
+      deserialize(fs, context, node_id);   
     }
   };
 
@@ -966,6 +990,7 @@ private:
   uint64_t tunable_epsilon_level;
   uint64_t const ops_before_update;
   uint64_t const window_size;
+  uint64_t glob_id_inc = 0;
   
 public:
   betree(swap_space *sspace,
@@ -987,6 +1012,9 @@ public:
   {
     // The root is always at level 0 in the tree.
     root = ss->allocate(new node(starting_epsilon, 0, ops_before_update, window_size));
+    auto new_node_id = glob_id_inc++;
+    root->set_node_id(new_node_id);
+    std::cout << "root_node_id: " << std::to_string(root->get_node_id()) << std::endl;
   }
 
   // Wrapper methods to call recursive methods to 
@@ -1015,9 +1043,15 @@ public:
     if (new_nodes.size() > 0)
     {
       e = root->epsilon;
+      
       // The root's level should always be 0
       root = ss->allocate(new node(e, 0, ops_before_update, window_size));
       root->pivots = new_nodes;
+
+      auto new_node_id = glob_id_inc++;
+      root->set_node_id(new_node_id);
+
+      std::cout << "new root_node_id: " << std::to_string(root->get_node_id()) << std::endl;
     }
   }
 

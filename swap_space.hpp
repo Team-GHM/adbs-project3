@@ -400,6 +400,7 @@ public:
       // stays the same.
     }
 
+
   private:
     swap_space *ss;
     uint64_t target;
