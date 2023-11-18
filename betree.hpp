@@ -377,6 +377,113 @@ private:
       return pivots.empty();
     }
 
+
+    bool is_in_range(Key key) {
+
+	auto first_elt = elements.begin(); 
+	
+	if (first_elt == elements.end()) {
+	 return false;
+	}
+
+	auto last_elt = elements.end();
+	--last_elt;
+
+	auto first_key = first_elt->first.key;
+	auto last_key = last_elt->first.key;
+
+
+	//std::cout << "first_key: " << std::to_string(first_key) << std::endl;
+	//std::cout << "last_key: " << std::to_string(last_key) << std::endl;
+	//std::cout << "key: " << std::to_string(key) << std::endl;
+	
+	if (key >= first_key && key <= last_key) {
+		return true;
+	}
+	else {
+		return false;
+	}
+    }
+
+    //
+    //
+    // -------------------------------------------------------- //
+    void find_closest_smallest_apply(betree &bet, const MessageKey<Key> &mkey, const Message<Value> &elt) {
+	Key key = mkey.key;
+
+	// go through children
+	for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it) {
+	
+	       // next child	
+	       auto nextIt = next(apply_it);
+
+	       // if there's more than one child or on last pivot
+	       if (nextIt != pivots.end()) {
+
+	           // last element of child
+		   auto last_elt = apply_it->second.child->elements.rbegin();
+		   auto last_key = last_elt->first.key; // get key
+
+		   // first element of next child
+		   auto first_elt_next = nextIt->second.child->elements.begin();
+		   auto first_key_next = first_elt_next->first.key; // get key
+
+		   // if key to apply is between the child and next child
+		   if (key > last_key && key < first_key_next){
+			auto it_size = apply_it->second.child->pivots.size();
+			auto nextIt_size =  nextIt->second.child->pivots.size();
+
+			if (nextIt_size > it_size){
+			    std::cout << "applied to nextIt" << std::endl;
+			    nextIt->second.child->apply(mkey, elt, bet.default_value);
+			} else {
+			    std::cout << "applied to it_apply" << std::endl;
+			    apply_it->second.child->apply(mkey, elt, bet.default_value);
+			}
+			break;
+
+		   }
+	   	   else {
+			// first element of current child
+			auto first_elt = apply_it->second.child->elements.begin();
+			auto first_key = first_elt->first.key;
+			// if key to apply is less than existing key in child
+			if (key < first_key && apply_it == pivots.begin()) {
+			    apply_it->second.child->apply(mkey, elt, bet.default_value);	
+			    std::cout << "applied to first pivot" << std::endl;
+			    break;
+			}
+		   }	   
+	       }
+	       else { // last  or only pivot
+		   std::cout << "applied to last pivot" << std::endl;
+	           apply_it->second.child->apply(mkey, elt, bet.default_value);
+	       	   break;
+	       }
+        }
+    }
+
+    // forwards messages to children
+    void forward_messages(betree &bet){
+
+              for (auto elt_it = elements.begin(); elt_it != elements.end(); ++elt_it) {
+
+                  bool found_range = false;
+                  for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it) {
+                        auto key = elt_it->first.key;
+                        if (apply_it->second.child->is_in_range(key)) {
+                                found_range = true;
+                                std::cout << "found child in range" << std::endl;
+                                apply_it->second.child->apply(elt_it->first, elt_it->second, bet.default_value);
+                        }
+                  }
+                  if (!found_range) {
+                        // find 2 pivots near key is in between  and put it to the one with less messages
+                        std::cout << "didn't find in range, apply to closest-smallest ..." << std::endl;
+                        find_closest_smallest_apply(bet, elt_it->first, elt_it->second);
+                  }
+              }
+    }
     // Holy frick-a-moly.  We want to write a const function that
     // returns a const_iterator when called from a const function and
     // a non-const function that returns a (non-const_)iterator when
@@ -607,7 +714,7 @@ private:
 	}
 
 	uint64_t total_pivots = pivots.size();
-	std::vector<message_map> messages_to_fwd; // for message_maps to pertain
+	//std::vector<message_map> messages_to_fwd; // for message_maps to pertain
 
 	// First get all the IDs of current children to potentially kill
 	std::vector<uint64_t> cur_child_ids;
@@ -617,6 +724,8 @@ private:
 	}
 	uint64_t size_before_adopt = cur_child_ids.size();
 
+	std::cout << "size before adopt: " << std::to_string(size_before_adopt) << std::endl;
+	
 	// Iterate over children and count their pivots to assess if
 	// we can adopt grandchildren from them
 	for (uint64_t i = 0; i < size_before_adopt; i ++) {
@@ -647,12 +756,19 @@ private:
 	    }
 	
 	    pivot_map grandchildren = child_to_erase->pivots; // granchildren of this child
-	 
+	    std::cout << "sibling grandchildren size: " << std::to_string(grandchildren.size()) << std::endl;
 	    if (grandchildren.size() > 0) {
 	      
-    	      // save the messages from the child
-              message_map child_messages = child_to_erase->elements;
-	      messages_to_fwd.push_back(child_messages);
+
+	      std::cout << "pivots size before adopt(): " << std::to_string(total_pivots) << std::endl;
+    	      
+	      // save the messages from the child
+              //message_map child_messages = child_to_erase->elements;
+	      //messages_to_fwd.push_back(child_messages);
+
+	      // iterate over
+	      child_to_erase->forward_messages(bet);
+
 
 	      // stop pointing to child
 	      pivots.erase(it);
@@ -673,17 +789,11 @@ private:
 	      
 	      // update pivot count
 	      total_pivots = pivots.size();
+	      std::cout << "pivots size after adopt(): " << std::to_string(total_pivots) << std::endl;
+
 	    }
 	  }
     	}
-
-	// Apply all messages to this node: 
-	for (auto &mssg_map : messages_to_fwd) {
-	    
-	    // Apply each message in our elements to ourself (meaning this node)
-            for (auto it = mssg_map.begin(); it != mssg_map.end(); ++it)
-              apply(it->first, it->second, bet.default_value);
-	}
 
 	// After adoption, go through all children of this node and udpates child_size
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
@@ -691,10 +801,11 @@ private:
                 	it->second.child->pivots.size() +
                 	it->second.child->elements.size();
 	}
+
     }
    // --------------------------------------------------------------- //  
 
-
+    
 
     // Merge Method
     node_pointer merge(betree &bet,
@@ -971,7 +1082,7 @@ private:
         }
         else
         {
-	  std::cout << "key don't exist on Leaf node!" << std::endl;
+	  std::cout << "key: " << std::to_string(k) << " don't exist on Leaf node!" << std::endl;
           throw std::out_of_range("Key does not exist");
         }
       }
@@ -1183,6 +1294,14 @@ public:
       root->node_id = new_root_id;	      
     }
   }
+
+  // Upserts a dummy value at the root to manually flush the tree.
+  void manual_flush(){
+	Key dummyKey = default_value;
+	Value dummyValue = default_value;
+	upsert(INSERT, dummyKey, dummyValue);
+  }
+
 
   void insert(Key k, Value v)
   {
