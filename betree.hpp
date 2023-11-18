@@ -1226,7 +1226,7 @@ private:
       fs >> dummy;
       deserialize(fs, context, node_id);
       fs >> dummy;
-      deserialize(fs, context, node_id);
+      deserialize(fs, context, ready_for_adoption);
     }
   };
 
