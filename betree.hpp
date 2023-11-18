@@ -633,7 +633,6 @@ private:
 	}
 
 	uint64_t total_pivots = pivots.size();
-	//std::vector<message_map> messages_to_fwd; // for message_maps to pertain
 
 	// First get all the IDs of current children to potentially kill
 	std::vector<uint64_t> cur_child_ids;
