@@ -338,7 +338,8 @@ private:
       epsilon = e;
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
-    
+  
+      // flag node as ready for adoption if max_pivots increases after epsilon update  
       if (max_pivots > prev_max_pivots) {
 	ready_for_adoption = true;
       }
@@ -493,10 +494,8 @@ private:
     }
 
 
-   
-    
-
-
+    // Returns true or false for whether the given key
+    // is in the range of this node's elements' keys
     bool is_in_range(Key key) {
 
 	auto first_elt = elements.begin();
@@ -511,11 +510,6 @@ private:
 	auto first_key = first_elt->first.key;
 	auto last_key = last_elt->first.key;
 
-
-	//std::cout << "first_key: " << std::to_string(first_key) << std::endl;
-	//std::cout << "last_key: " << std::to_string(last_key) << std::endl;
-	//std::cout << "key: " << std::to_string(key) << std::endl;
-
 	if (key >= first_key && key <= last_key) {
 		return true;
 	}
@@ -524,7 +518,19 @@ private:
 	}
     }
 
+    // Given a MessageKey and MessageValue, this method will apply the message kv-pair
+    // to one of this node's children. 
     //
+    // This method assumes that the kv-pair is not within the range of children, but lies
+    // just outside of their buckets. 
+    //
+    // If there is only one child, that the message will apply() to that.
+    //
+    // If the key of the message lies in between the buckets of two children, the child with
+    // less messages take the message.
+    //
+    // If the key of the message is < the first key of the first child or if its > that the last key
+    // of the last child, the message will be applied to the first or last child respectively.
     //
     // -------------------------------------------------------- //
     void find_closest_smallest_apply(betree &bet, const MessageKey<Key> &mkey, const Message<Value> &elt) {
@@ -553,10 +559,8 @@ private:
 			auto nextIt_size =  nextIt->second.child->pivots.size();
 
 			if (nextIt_size > it_size){
-			    //std::cout << "applied to nextIt" << std::endl;
 			    nextIt->second.child->apply(mkey, elt, bet.default_value);
 			} else {
-			    //std::cout << "applied to it_apply" << std::endl;
 			    apply_it->second.child->apply(mkey, elt, bet.default_value);
 			}
 			break;
@@ -569,22 +573,20 @@ private:
 			// if key to apply is less than existing key in child
 			if (key < first_key && apply_it == pivots.begin()) {
 			    apply_it->second.child->apply(mkey, elt, bet.default_value);
-			    //std::cout << "applied to first pivot" << std::endl;
 			    break;
 			}
 		   }
 	       }
 	       else { // last  or only pivot
-		   //std::cout << "applied to last pivot" << std::endl;
 	           apply_it->second.child->apply(mkey, elt, bet.default_value);
 	       	   break;
 	       }
         }
     }
 
-    // forwards messages to children
+    // Forwards messages in this node to children to children
     void forward_messages(betree &bet){
-
+	      // go through messages     
               for (auto elt_it = elements.begin(); elt_it != elements.end(); ++elt_it) {
 
                   bool found_range = false;
@@ -592,13 +594,11 @@ private:
                         auto key = elt_it->first.key;
                         if (apply_it->second.child->is_in_range(key)) {
                                 found_range = true;
-                                //std::cout << "found child in range" << std::endl;
                                 apply_it->second.child->apply(elt_it->first, elt_it->second, bet.default_value);
                         }
                   }
                   if (!found_range) {
                         // find 2 pivots near key is in between  and put it to the one with less messages
-                        //std::cout << "didn't find in range, apply to closest-smallest ..." << std::endl;
                         find_closest_smallest_apply(bet, elt_it->first, elt_it->second);
                   }
               }
@@ -632,8 +632,6 @@ private:
 		return;
 	}
 
-	//std::cout << "attempting to adopt()" << std::endl;
-
 	uint64_t total_pivots = pivots.size();
 	//std::vector<message_map> messages_to_fwd; // for message_maps to pertain
 
@@ -644,8 +642,6 @@ private:
 		cur_child_ids.push_back(cur_id);
 	}
 	uint64_t size_before_adopt = cur_child_ids.size();
-
-	//std::cout << "size before adopt: " << std::to_string(size_before_adopt) << std::endl;
 
 	// Iterate over children and count their pivots to assess if
 	// we can adopt grandchildren from them
@@ -677,23 +673,16 @@ private:
 	    }
 
 	    pivot_map grandchildren = child_to_erase->pivots; // granchildren of this child
-	    //std::cout << "sibling grandchildren size: " << std::to_string(grandchildren.size()) << std::endl;
+	    
+	    // if there are grandchildren to adopt
 	    if (grandchildren.size() > 0) {
 
-
-	      //std::cout << "pivots size before adopt(): " << std::to_string(total_pivots) << std::endl;
-
-	      // save the messages from the child
-              //message_map child_messages = child_to_erase->elements;
-	      //messages_to_fwd.push_back(child_messages);
-
-	      // iterate over
+	      // forward child's messages to children
 	      child_to_erase->forward_messages(bet);
 
-
-	      // stop pointing to child
+	      // kill child
 	      pivots.erase(it);
-              child_to_erase->pivots.clear();// clear where pivot points
+              child_to_erase->pivots.clear();
               child_to_erase->elements.clear();
 
 	      // decrement node_level of adoptees
@@ -708,12 +697,8 @@ private:
 	      // to assess the next child that isn't adopted
 	      cur_child_ids.erase(cur_child_ids.begin());
 
-	      std::cout << "adopted 1 or more grandchildren ... " << std::endl;
-
 	      // update pivot count
 	      total_pivots = pivots.size();
-	      //std::cout << "pivots size after adopt(): " << std::to_string(total_pivots) << std::endl;
-
 	    }
 	  }
     	}
@@ -731,9 +716,10 @@ private:
     // --------------------------------------------------------------- //
    
 
-
+    // Adopt() recursively from the bottom to the top.
+    // Nodes only adopt if they recently got bigger max_pivots
     void recursive_adopt(betree &bet) {
-	// For all kids, call adopts()
+	// For all kids, call adopt()
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
 	    it->second.child->adopt(bet);
 	}
@@ -840,6 +826,8 @@ private:
       auto e = epsilon;
       auto l = node_level;
       node_pointer new_node = bet.ss->allocate(new node(e, l, bet.ops_before_update, bet.window_size));
+      auto new_node_id = bet.glob_id_inc++;
+      new_node->set_node_id(new_node_id);
       for (auto it = begin; it != end; ++it)
       {
         new_node->elements.insert(it->second.child->elements.begin(),
@@ -1275,9 +1263,8 @@ public:
   {
     // The root is always at level 0 in the tree.
     root = ss->allocate(new node(starting_epsilon, 0, ops_before_update, window_size));
-    auto new_node_id = glob_id_inc++;
+    auto new_node_id = glob_id_inc++; // init node_id
     root->set_node_id(new_node_id);
-    std::cout << "root_node_id: " << std::to_string(root->get_node_id()) << std::endl;
   }
 
   // Wrapper methods to call recursive methods to 
@@ -1311,10 +1298,9 @@ public:
       root = ss->allocate(new node(e, 0, ops_before_update, window_size));
       root->pivots = new_nodes;
 
+      // set new node_id
       auto new_node_id = glob_id_inc++;
       root->set_node_id(new_node_id);
-
-      std::cout << "new root_node_id: " << std::to_string(root->get_node_id()) << std::endl;
     }
   }
 
