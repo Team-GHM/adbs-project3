@@ -482,6 +482,234 @@ private:
       }
     }
 
+
+
+    bool is_in_range(Key key) {
+
+	auto first_elt = elements.begin();
+
+	if (first_elt == elements.end()) {
+	 return false;
+	}
+
+	auto last_elt = elements.end();
+	--last_elt;
+
+	auto first_key = first_elt->first.key;
+	auto last_key = last_elt->first.key;
+
+
+	//std::cout << "first_key: " << std::to_string(first_key) << std::endl;
+	//std::cout << "last_key: " << std::to_string(last_key) << std::endl;
+	//std::cout << "key: " << std::to_string(key) << std::endl;
+
+	if (key >= first_key && key <= last_key) {
+		return true;
+	}
+	else {
+		return false;
+	}
+    }
+
+    //
+    //
+    // -------------------------------------------------------- //
+    void find_closest_smallest_apply(betree &bet, const MessageKey<Key> &mkey, const Message<Value> &elt) {
+	Key key = mkey.key;
+
+	// go through children
+	for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it) {
+
+	       // next child
+	       auto nextIt = next(apply_it);
+
+	       // if there's more than one child or on last pivot
+	       if (nextIt != pivots.end()) {
+
+	           // last element of child
+		   auto last_elt = apply_it->second.child->elements.rbegin();
+		   auto last_key = last_elt->first.key; // get key
+
+		   // first element of next child
+		   auto first_elt_next = nextIt->second.child->elements.begin();
+		   auto first_key_next = first_elt_next->first.key; // get key
+
+		   // if key to apply is between the child and next child
+		   if (key > last_key && key < first_key_next){
+			auto it_size = apply_it->second.child->pivots.size();
+			auto nextIt_size =  nextIt->second.child->pivots.size();
+
+			if (nextIt_size > it_size){
+			    std::cout << "applied to nextIt" << std::endl;
+			    nextIt->second.child->apply(mkey, elt, bet.default_value);
+			} else {
+			    std::cout << "applied to it_apply" << std::endl;
+			    apply_it->second.child->apply(mkey, elt, bet.default_value);
+			}
+			break;
+
+		   }
+	   	   else {
+			// first element of current child
+			auto first_elt = apply_it->second.child->elements.begin();
+			auto first_key = first_elt->first.key;
+			// if key to apply is less than existing key in child
+			if (key < first_key && apply_it == pivots.begin()) {
+			    apply_it->second.child->apply(mkey, elt, bet.default_value);
+			    std::cout << "applied to first pivot" << std::endl;
+			    break;
+			}
+		   }
+	       }
+	       else { // last  or only pivot
+		   std::cout << "applied to last pivot" << std::endl;
+	           apply_it->second.child->apply(mkey, elt, bet.default_value);
+	       	   break;
+	       }
+        }
+    }
+
+    // forwards messages to children
+    void forward_messages(betree &bet){
+
+              for (auto elt_it = elements.begin(); elt_it != elements.end(); ++elt_it) {
+
+                  bool found_range = false;
+                  for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it) {
+                        auto key = elt_it->first.key;
+                        if (apply_it->second.child->is_in_range(key)) {
+                                found_range = true;
+                                std::cout << "found child in range" << std::endl;
+                                apply_it->second.child->apply(elt_it->first, elt_it->second, bet.default_value);
+                        }
+                  }
+                  if (!found_range) {
+                        // find 2 pivots near key is in between  and put it to the one with less messages
+                        std::cout << "didn't find in range, apply to closest-smallest ..." << std::endl;
+                        find_closest_smallest_apply(bet, elt_it->first, elt_it->second);
+                  }
+              }
+    }
+
+
+
+    // Method to shorten parts of the tree.
+    //
+    // This method goes through the children of the node its called on and will adopt
+    // grandchildren and erase their parents. A node can only adopt up to their max_pivots
+    // amount of grandchildren. Grandchildren will only be adopted if all of the siblings
+    // in the families of grandchildren can be adopted. If sibling grandchildren are adopted,
+    // their parent (child of this node) is killed.
+    //
+    // Currently, if grandchildren are adopted and their parents are killed, all of the elements
+    // in those parents (former children of this node) will be applied to this node - so, the message
+    // buffer in this node will temporarily be > max_messages potentially
+    //
+    // -----------------------------------------------------------------------------------------
+    void adopt(betree &bet) {
+	// Nothing to adopt if leaf
+	if (is_leaf()) {
+        	return;
+	}
+	// No need to adopt if pivots at max
+	if (pivots.size() >= max_pivots) {
+		return;
+	}
+
+	uint64_t total_pivots = pivots.size();
+	//std::vector<message_map> messages_to_fwd; // for message_maps to pertain
+
+	// First get all the IDs of current children to potentially kill
+	std::vector<uint64_t> cur_child_ids;
+	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+		uint64_t cur_id = it->second.child->get_node_id();
+		cur_child_ids.push_back(cur_id);
+	}
+	uint64_t size_before_adopt = cur_child_ids.size();
+
+	std::cout << "size before adopt: " << std::to_string(size_before_adopt) << std::endl;
+
+	// Iterate over children and count their pivots to assess if
+	// we can adopt grandchildren from them
+	for (uint64_t i = 0; i < size_before_adopt; i ++) {
+
+	  // iterate till we find the child with node_id == cur_child_ids[0] or reach the end
+	  auto it = pivots.begin();
+	  while (true) {
+		auto cur_id = it->second.child->get_node_id();
+		if (cur_id == cur_child_ids[0]){
+			break;
+		}
+		it = next(it);
+		if (it == pivots.end()){ break; }
+	  }
+
+	  if (it != pivots.end()) {// if not at end
+
+	    // see if we can adopt all sibling grandchildren
+	    if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
+		  continue; // don't adopt the set of grandchildren
+	    }
+
+	    auto child_to_erase = it->second.child;// the child whose grandchildren we'll adopt
+
+	    // Skip is child is leaf, there's no grandchildren to adopt
+	    if (child_to_erase->is_leaf()) {
+		    continue;
+	    }
+
+	    pivot_map grandchildren = child_to_erase->pivots; // granchildren of this child
+	    std::cout << "sibling grandchildren size: " << std::to_string(grandchildren.size()) << std::endl;
+	    if (grandchildren.size() > 0) {
+
+
+	      std::cout << "pivots size before adopt(): " << std::to_string(total_pivots) << std::endl;
+
+	      // save the messages from the child
+              //message_map child_messages = child_to_erase->elements;
+	      //messages_to_fwd.push_back(child_messages);
+
+	      // iterate over
+	      child_to_erase->forward_messages(bet);
+
+
+	      // stop pointing to child
+	      pivots.erase(it);
+              child_to_erase->pivots.clear();// clear where pivot points
+              child_to_erase->elements.clear();
+
+	      // decrement node_level of adoptees
+              for (auto adopt_it = grandchildren.begin(); adopt_it != grandchildren.end(); ++adopt_it) {
+                  adopt_it->second.child->decrement_node_level();
+              }
+
+	      // adopt sibling grandchildren
+	      pivots.insert(grandchildren.begin(), grandchildren.end());
+
+	      // remove element at 0 index of cur_child_ids and push everything back
+	      // to assess the next child that isn't adopted
+	      cur_child_ids.erase(cur_child_ids.begin());
+
+	      // update pivot count
+	      total_pivots = pivots.size();
+	      std::cout << "pivots size after adopt(): " << std::to_string(total_pivots) << std::endl;
+
+	    }
+	  }
+    	}
+
+	// After adoption, go through all children of this node and udpates child_size
+	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
+		it->second.child_size =
+                	it->second.child->pivots.size() +
+                	it->second.child->elements.size();
+	}
+
+    }
+    // --------------------------------------------------------------- //
+   
+
+
     // Requires: there are less than MIN_FLUSH_SIZE things in elements
     //           destined for each child in pivots);
     pivot_map split(betree &bet)
