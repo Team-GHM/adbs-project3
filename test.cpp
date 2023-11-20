@@ -29,7 +29,7 @@ void timer_stop(uint64_t &timer)
   timer += 1000000*t.tv_sec + t.tv_usec;
 }
 
-/*int next_command(FILE *input, int *op, uint64_t *arg)
+int next_command(FILE *input, int *op, uint64_t *arg)
 {
   int ret;
   char command[64];
@@ -85,7 +85,7 @@ void do_scan(typename betree<Key, Value>::iterator &betit,
     ++betit;
   }
   assert(betit == b.end());
-}*/
+}
 
 #define DEFAULT_TEST_MAX_NODE_SIZE (1ULL<<6)
 #define DEFAULT_TEST_MIN_FLUSH_SIZE (DEFAULT_TEST_MAX_NODE_SIZE / 4)
@@ -119,7 +119,7 @@ void usage(char *name)
     << "    -i <script_file>                                [ default: none ]"                                  << std::endl;
 }
 
-/*int test(betree<uint64_t, std::string> &b,
+int test(betree<uint64_t, std::string> &b,
 	 uint64_t nops,
 	 uint64_t number_of_distinct_keys,
 	 FILE *script_input,
@@ -212,7 +212,7 @@ void usage(char *name)
   std::cout << "Test PASSED" << std::endl;
   
   return 0;
-}*/
+}
 
 void benchmark_upserts(betree<uint64_t, std::string> &b,
 		       uint64_t nops,
@@ -225,7 +225,6 @@ void benchmark_upserts(betree<uint64_t, std::string> &b,
     timer_start(timer);
     for (uint64_t i = 0; i < nops / 100; i++) {
       uint64_t t = rand() % number_of_distinct_keys;
-      std::cout << t << std::endl;
       b.update(t, std::to_string(t) + ":");
     }
     timer_stop(timer);
@@ -255,11 +254,8 @@ void benchmark_queries(betree<uint64_t, std::string> &b,
   uint64_t overall_timer = 0;
 	timer_start(overall_timer);
   for (uint64_t i = 0; i < nops; i++) {
-    //uint64_t t = rand() % number_of_distinct_keys;
-    //b.query(t);
     uint64_t t = rand() % number_of_distinct_keys;
-    std::string result = b.query(t);
-    printf("Query for key %ld returned value: %s\n", t, result.c_str());
+    b.query(t);
   }
 	timer_stop(overall_timer);
 
@@ -414,21 +410,13 @@ int main(int argc, char **argv)
   swap_space sspace(&ofpobs, cache_size);
   betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
 
-  /*if (strcmp(mode, "test") == 0) {
+  if (strcmp(mode, "test") == 0) 
     test(b, nops, number_of_distinct_keys, script_input, script_output);
-    std::cout << "Test" << std::endl;
-  }*/
-  if (strcmp(mode, "benchmark-upserts") == 0) {
+  else if (strcmp(mode, "benchmark-upserts") == 0)
     benchmark_upserts(b, nops, number_of_distinct_keys, random_seed);
-    std::cout << "Upsert" << std::endl;
-  }
-  else if (strcmp(mode, "benchmark-queries") == 0){
+  else if (strcmp(mode, "benchmark-queries") == 0)
     benchmark_queries(b, nops, number_of_distinct_keys, random_seed);
-    std::cout << "Test" << std::endl;
-  }
   
-  //std::cout << "Mode: " << mode << std::endl;
-
   if (script_input)
     fclose(script_input);
   
@@ -437,4 +425,3 @@ int main(int argc, char **argv)
 
   return 0;
 }
-

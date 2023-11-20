@@ -136,10 +136,10 @@ int main(int argc, char **argv)
     uint64_t nops = DEFAULT_TEST_NOPS;
     unsigned int random_seed = time(NULL) * getpid();
     float startingepsilon = 0.4; 
-    uint64_t tunableepsilonlevel = 0;
+    uint64_t tunableepsilonlevel = 1;
     uint64_t opsbeforeupdate = 100;
     uint64_t windowsize = 100;
-    bool is_dynamic;
+    bool is_dynamic = true;
 
     int opt;
     char *term;
