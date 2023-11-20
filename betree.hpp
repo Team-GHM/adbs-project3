@@ -927,7 +927,7 @@ private:
     {
       // If this node is less than the tunable epsilon tree level
       // Checks for an epsilon update.
-      if (node_level <= bet.tunable_epsilon_level) {
+      if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level) {
         add_write();
       } else if (epsilon != parent_epsilon) {
         epsilon = parent_epsilon; 
@@ -1076,7 +1076,7 @@ private:
       debug(std::cout << "Querying " << this << std::endl);
       // If this node is less than the tunable epsilon tree level
       // Checks for an epsilon update.
-      if (node_level <= bet.tunable_epsilon_level) {
+      if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level) {
         add_read();
       }
       if (is_leaf())
@@ -1233,6 +1233,7 @@ private:
   uint64_t min_flush_size;
   uint64_t max_node_size;
   uint64_t min_node_size;
+  bool is_dynamic;
   node_pointer root;
   uint64_t next_timestamp = 1; // Nothing has a timestamp of 0
   Value default_value;
@@ -1247,6 +1248,7 @@ public:
          uint64_t maxnodesize = 64,
          uint64_t minnodesize = 64 / 4,
          uint64_t minflushsize = 64/ 16, 
+         bool isdynamic = false,
          float startingepsilon = 0.4, 
          uint64_t tunableepsilonlevel = 0,
          uint64_t opsbeforeupdate = 100,
@@ -1255,6 +1257,7 @@ public:
         min_flush_size(minflushsize),
         max_node_size(maxnodesize),
         min_node_size(minnodesize),
+        is_dynamic(isdynamic),
         starting_epsilon(startingepsilon),
         tunable_epsilon_level(tunableepsilonlevel),
         ops_before_update(opsbeforeupdate),
