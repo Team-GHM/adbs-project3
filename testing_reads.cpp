@@ -20,9 +20,8 @@ void timer_stop(uint64_t &timer)
     timer += 1000000 * t.tv_sec + t.tv_usec;
 }
 
-void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t number_of_distinct_keys, uint64_t random_seed, const char* outputFileName, const char* outputFileName2)
+void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t number_of_distinct_keys, uint64_t random_seed, const char* outputFileName)
 {
-    std::vector<double> throughputs;
     std::vector<double> ops_times;
     std::string line;
     std::vector<uint64_t> queryKeys; // Store the keys to be queried
@@ -69,7 +68,6 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
             timer_stop(timers);
             double query_timers = timers;
             ops_times.push_back(query_timers);
-            throughputs.push_back(1.0/(query_timers)); //Converting into seconds
             nops_query--;
             }
         }
@@ -80,17 +78,14 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
             std::string value = std::to_string(t) + ":";
             timer_start(timers2);
             b.update(t, value);
-            timer_stop(timers2);
-            nops_update--;
             double update_timers = timers2;
             ops_times.push_back(update_timers);
-            throughputs.push_back(1.0/(update_timers));
-            printf("# overall: %ld %ld, %f\n", nops, overall_timer, 1.0/(update_timers));
+            nops_update--;
         }
     }
     timer_stop(overall_timer); 
 
-    // Output time and throughput data to the output file
+    // Output time to the output file
     std::ofstream outputFile(outputFileName);
     if (outputFile.is_open())
     {
@@ -107,40 +102,9 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
             double average = total / 100;
         
             // Output average
-            std::cout << "Average time for queries " << i << " to " << i+99 << ": " << average << std::endl;
             outputFile << cnt << " " << average << "\n";
         }
-        
         outputFile.close();
-    }
-    else
-    {
-        std::cerr << "Failed to open output file for writing." << std::endl;
-        exit(1);
-    }
-
-    std::ofstream outputFile2(outputFileName2);
-    if (outputFile2.is_open())
-    {
-        int cnt = 0;
-        for(int i=0; i<throughputs.size(); i+=100) {
-            
-            cnt++;
-            double total2 = 0;
-            
-            for(int j=0; j<100 && i+j < throughputs.size(); j++) {
-                total2 += throughputs[i+j]; 
-                std::cout << " Throughput for queries " << i <<  ": " << total2 << std::endl;
-            }
-
-            double average = total2 / 100;
-        
-            // Output average
-            std::cout << "Average throughput for queries " << i << " to " << i+99 << ": " << average << std::endl;
-            outputFile2 << cnt << " " << average << "\n";
-        }
-        
-        outputFile2.close();
     }
     else
     {
@@ -168,6 +132,10 @@ int main(int argc, char **argv)
     uint64_t number_of_distinct_keys = DEFAULT_TEST_NDISTINCT_KEYS;
     uint64_t nops = DEFAULT_TEST_NOPS;
     unsigned int random_seed = time(NULL) * getpid();
+    float startingepsilon = 0.4; 
+    uint64_t tunableepsilonlevel = 0;
+    uint64_t opsbeforeupdate = 100;
+    uint64_t windowsize = 100;
 
     int opt;
     char *term;
@@ -261,11 +229,11 @@ int main(int argc, char **argv)
 
     one_file_per_object_backing_store ofpobs(backing_store_dir);
     swap_space sspace(&ofpobs, cache_size);
-    betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
-
-    char* outputFileName = "ops_times.txt"; // Name of the output file
-    char* outputFileName2 = "throughput.txt";
-    benchmark_queries(b, nops, number_of_distinct_keys, random_seed, outputFileName, outputFileName2);
-
+    betree<uint64_t, std::string> b_o(&sspace, max_node_size, min_flush_size);
+    betree<uint64_t, std::string> b_n(&sspace, max_node_size, min_flush_size, startingepsilon, tunableepsilonlevel, opsbeforeupdate, windowsize);
+    char* outputFileName1 = "read_ops_times_old.txt"; // Name of the output file
+    char* outputFileName2 = "read_ops_times_new.txt";
+    benchmark_queries(b_o, nops, number_of_distinct_keys, random_seed, outputFileName1);
+    benchmark_queries(b_n, nops, number_of_distinct_keys, random_seed, outputFileName2);
     return 0;
 }

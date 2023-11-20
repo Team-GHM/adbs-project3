@@ -22,17 +22,15 @@ void timer_stop(uint64_t &timer)
 
 void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t number_of_distinct_keys, uint64_t random_seed, const char* outputFileName)
 {
-    std::vector<uint64_t> times;
-    std::vector<double> throughputs;
+    std::vector<double> ops_times;
+    std::string line;
+    std::vector<uint64_t> queryKeys; // Store the keys to be queried
 
     // Pre-load the tree with data
-    std::ifstream file("random_keys.txt");
+    std::ifstream file("skewed_keys.txt");
     if (!file) {
         std::cerr << "Error: Could not open the file." << std::endl;
     }
-
-    std::string line;
-    std::vector<uint64_t> queryKeys; // Store the keys to be queried
 
     srand(random_seed);
 
@@ -68,11 +66,9 @@ void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
                     timer_stop(timers2);
                     // Add the key to the queryKeys vector
                     queryKeys.push_back(key); 
+                    double update_timers = timers2;
+                    ops_times.push_back(update_timers);
                     nops_update--;
-                    //double timer_us = timers2 / 1000000;
-                    double throughput3 = timers2;
-                    times.push_back(i + 1);
-                    throughputs.push_back(throughput3);
                 }
             }
         } 
@@ -85,10 +81,8 @@ void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
             timer_start(timers);
             std::string result = b.query(t);
             timer_stop(timers);
-            //double timer_us = timers / 1000;
-            double throughput2 = timers;
-            times.push_back(i + 1);
-            throughputs.push_back(throughput2);
+            double query_timers = timers;
+            ops_times.push_back(query_timers);
             nops_query--;
             }
         }
@@ -99,9 +93,20 @@ void benchmark_upserts(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
     std::ofstream outputFile(outputFileName);
     if (outputFile.is_open())
     {
-        for (size_t i = 0; i < times.size(); i++)
-        {
-            outputFile << times[i] << " " << throughputs[i] << "\n";
+        int cnt = 0;
+        for(int i=0; i<ops_times.size(); i+=100) {
+            
+            cnt++;
+            double total = 0;
+            
+            for(int j=0; j<100 && i+j < ops_times.size(); j++) {
+                total += ops_times[i+j]; 
+            }
+
+            double average = total / 100;
+        
+            // Output average
+            outputFile << cnt << " " << average << "\n";
         }
         outputFile.close();
     }
@@ -130,6 +135,10 @@ int main(int argc, char **argv)
     uint64_t number_of_distinct_keys = DEFAULT_TEST_NDISTINCT_KEYS;
     uint64_t nops = DEFAULT_TEST_NOPS;
     unsigned int random_seed = time(NULL) * getpid();
+    float startingepsilon = 0.4; 
+    uint64_t tunableepsilonlevel = 0;
+    uint64_t opsbeforeupdate = 100;
+    uint64_t windowsize = 100;
 
     int opt;
     char *term;
@@ -220,10 +229,12 @@ int main(int argc, char **argv)
 
     one_file_per_object_backing_store ofpobs(backing_store_dir);
     swap_space sspace(&ofpobs, cache_size);
-    betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
-
-    char* outputFileName = "throughput.txt"; // Name of the output file
-    benchmark_upserts(b, nops, number_of_distinct_keys, random_seed, outputFileName);
+    betree<uint64_t, std::string> b_o(&sspace, max_node_size, min_flush_size);
+    betree<uint64_t, std::string> b_n(&sspace, max_node_size, min_flush_size, startingepsilon, tunableepsilonlevel, opsbeforeupdate, windowsize);
+    char* outputFileName1 = "write_ops_times_old.txt"; // Name of the output file
+    char* outputFileName2 = "write_ops_times_new.txt";
+    benchmark_upserts(b_o, nops, number_of_distinct_keys, random_seed, outputFileName1);
+    benchmark_upserts(b_n, nops, number_of_distinct_keys, random_seed, outputFileName2);
 
     return 0;
 }
