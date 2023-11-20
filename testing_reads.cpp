@@ -136,6 +136,7 @@ int main(int argc, char **argv)
     uint64_t tunableepsilonlevel = 0;
     uint64_t opsbeforeupdate = 100;
     uint64_t windowsize = 100;
+    bool is_dynamic;
 
     int opt;
     char *term;
@@ -230,7 +231,7 @@ int main(int argc, char **argv)
     one_file_per_object_backing_store ofpobs(backing_store_dir);
     swap_space sspace(&ofpobs, cache_size);
     betree<uint64_t, std::string> b_o(&sspace, max_node_size, min_flush_size);
-    betree<uint64_t, std::string> b_n(&sspace, max_node_size, min_flush_size, startingepsilon, tunableepsilonlevel, opsbeforeupdate, windowsize);
+    betree<uint64_t, std::string> b_n(&sspace, max_node_size, min_flush_size, is_dynamic, startingepsilon, tunableepsilonlevel, opsbeforeupdate, windowsize);
     char* outputFileName1 = "read_ops_times_old.txt"; // Name of the output file
     char* outputFileName2 = "read_ops_times_new.txt";
     benchmark_queries(b_o, nops, number_of_distinct_keys, random_seed, outputFileName1);
