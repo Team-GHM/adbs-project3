@@ -341,7 +341,6 @@ private:
   
       // flag node as ready for adoption if max_pivots increases after epsilon update  
       if (max_pivots > prev_max_pivots) {
-	std::cout << "flagging as ready_for_adoption" << std::endl;
  	ready_for_adoption = true;
       }
     }
@@ -620,7 +619,6 @@ private:
     // buffer in this node will temporarily be > max_messages potentially
     //
     // -----------------------------------------------------------------------------------------
-    //void adopt(betree &bet) {
     void adopt(betree &bet, uint64_t max_piv) {
 
         // Nothing to adopt if leaf
@@ -663,7 +661,6 @@ private:
 	  if (it != pivots.end()) {// if not at end
 
 	    // see if we can adopt all sibling grandchildren
-	    //if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
 	    if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_piv) {
 	    	continue; // don't adopt the set of grandchildren
 	    }
@@ -696,7 +693,6 @@ private:
 	      // adopt sibling grandchildren
 	      pivots.insert(grandchildren.begin(), grandchildren.end());
 
-	      std::cout << "adopted " << std::to_string(grandchildren.size()) << " grandchildren .." << std::endl;
 	      // remove element at 0 index of cur_child_ids and push everything back
 	      // to assess the next child that isn't adopted
 	      cur_child_ids.erase(cur_child_ids.begin());
@@ -1075,7 +1071,6 @@ private:
     }
 
     Value query(betree &bet, const Key k)
-    //Value query(const betree &bet, const Key k)
     {
       debug(std::cout << "Querying " << this << std::endl);
       // If this node is less than the tunable epsilon tree level
@@ -1147,14 +1142,13 @@ private:
         message_iter++;
       }
 
+      // Adopt if ready (max_pivots grew) after obtained result to return
       if (ready_for_adoption) {
-	std::cout << "adopting on this node!" << std::endl;
-	// Adopt if node is flagged as ready_for_adoption, do it after abtained result to return
         if (node_level < bet.tunable_epsilon_level) {
 	  adopt(bet, max_pivots);
-        } // else if node is at node_level, when ready_for_adoption, recursively adopt bottom-up for 
-        //   all nodes that inherit this nodes Epsilon, and this node adopts too
+        } 
         else if (node_level == bet.tunable_epsilon_level) {
+	  // recursively adopt from bottom-up for all nodes that inherit epsilon level
 	  recursive_adopt(bet, max_pivots);
         }
       }
