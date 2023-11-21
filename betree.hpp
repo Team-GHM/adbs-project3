@@ -692,6 +692,8 @@ private:
 	      // adopt sibling grandchildren
 	      pivots.insert(grandchildren.begin(), grandchildren.end());
 
+	      std::cout << "adopted 1 or more children... " << std::endl;
+
 	      // remove element at 0 index of cur_child_ids and push everything back
 	      // to assess the next child that isn't adopted
 	      cur_child_ids.erase(cur_child_ids.begin());
@@ -720,7 +722,8 @@ private:
     void recursive_adopt(betree &bet) {
 	// For all kids, call adopt()
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-	    it->second.child->adopt(bet);
+	    //it->second.child->adopt(bet);
+	    it->second.child->recursive_adopt(bet);
 	}
 	
 	// adopt after children have adopted
@@ -1327,8 +1330,8 @@ public:
 
 
     if (root->ready_for_adoption) {
-      //root->recursive_adopt(*this);
-      root->adopt(*this);
+      root->recursive_adopt(*this);
+      //root->adopt(*this);
     }
 
     return v;
