@@ -619,8 +619,10 @@ private:
     // buffer in this node will temporarily be > max_messages potentially
     //
     // -----------------------------------------------------------------------------------------
-    void adopt(betree &bet) {
-	// Nothing to adopt if leaf
+    //void adopt(betree &bet) {
+    void adopt(betree &bet, uint64_t max_piv) {
+
+        // Nothing to adopt if leaf
 	if (is_leaf()) {
 		ready_for_adoption = false;
         	return;
@@ -692,6 +694,8 @@ private:
 	      // adopt sibling grandchildren
 	      pivots.insert(grandchildren.begin(), grandchildren.end());
 
+	      std::cout << "adopted 1 or more children ... " << std::endl;
+
 	      // remove element at 0 index of cur_child_ids and push everything back
 	      // to assess the next child that isn't adopted
 	      cur_child_ids.erase(cur_child_ids.begin());
@@ -716,18 +720,15 @@ private:
    
 
     // Adopt() recursively from the bottom to the top.
-    // Nodes only adopt if they recently got bigger max_pivots
     void recursive_adopt(betree &bet) {
 	// For all kids, call adopt()
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-	    it->second.child->adopt(bet);
+	    it->second.child->adopt(bet, max_pivots);
 	}
 	
 	// adopt after children have adopted
-	if (ready_for_adoption) {
-		adopt(bet);
-	}
-    }
+	adopt(bet, max_pivots);
+    } // ---------------------------------- //
 
 
     // Requires: there are less than MIN_FLUSH_SIZE things in elements
@@ -1328,7 +1329,10 @@ public:
 
     if (root->ready_for_adoption) {
       //root->recursive_adopt(*this);
-      root->adopt(*this);
+      auto max_piv = root->max_pivots;
+      root->adopt(*this, max_piv);
+    
+      // TODO: call recursive function that iterates through children first and calls adopt if nodes are ready for adoption.
     }
 
     return v;

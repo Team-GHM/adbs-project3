@@ -408,7 +408,20 @@ int main(int argc, char **argv)
   
   one_file_per_object_backing_store ofpobs(backing_store_dir);
   swap_space sspace(&ofpobs, cache_size);
-  betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
+  //betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
+  betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size, true, 0.4, 1, 100, 100);
+
+
+/*
+ * uint64_t maxnodesize = 64,
+         uint64_t minnodesize = 64 / 4,
+         uint64_t minflushsize = 64/ 16,
+         bool isdynamic = false,
+         float startingepsilon = 0.4,
+         uint64_t tunableepsilonlevel = 0,
+         uint64_t opsbeforeupdate = 100,
+         uint64_t windowsize = 100)
+*/
 
   if (strcmp(mode, "test") == 0) 
     test(b, nops, number_of_distinct_keys, script_input, script_output);
