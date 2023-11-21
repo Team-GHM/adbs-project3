@@ -335,13 +335,15 @@ private:
     void set_epsilon(float e) {
       auto prev_max_pivots = max_pivots;
 
+      std::cout << "setting epsilon ..." << std::endl;
       epsilon = e;
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
   
       // flag node as ready for adoption if max_pivots increases after epsilon update  
       if (max_pivots > prev_max_pivots) {
-	ready_for_adoption = true;
+	std::cout << "flagging as ready_for_adoption" << std::endl;
+ 	ready_for_adoption = true;
       }
     }
 
@@ -619,8 +621,10 @@ private:
     // buffer in this node will temporarily be > max_messages potentially
     //
     // -----------------------------------------------------------------------------------------
-    void adopt(betree &bet) {
-	// Nothing to adopt if leaf
+    //void adopt(betree &bet) {
+    void adopt(betree &bet, uint64_t max_piv) {
+
+        // Nothing to adopt if leaf
 	if (is_leaf()) {
 		ready_for_adoption = false;
         	return;
@@ -660,8 +664,9 @@ private:
 	  if (it != pivots.end()) {// if not at end
 
 	    // see if we can adopt all sibling grandchildren
-	    if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
-		  continue; // don't adopt the set of grandchildren
+	    //if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
+	    if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_piv) {
+	    	continue; // don't adopt the set of grandchildren
 	    }
 
 	    auto child_to_erase = it->second.child;// the child whose grandchildren we'll adopt
@@ -692,6 +697,7 @@ private:
 	      // adopt sibling grandchildren
 	      pivots.insert(grandchildren.begin(), grandchildren.end());
 
+	      std::cout << "adopted " << std::to_string(grandchildren.size()) << " grandchildren .." << std::endl;
 	      // remove element at 0 index of cur_child_ids and push everything back
 	      // to assess the next child that isn't adopted
 	      cur_child_ids.erase(cur_child_ids.begin());
@@ -699,6 +705,7 @@ private:
 	      // update pivot count
 	      total_pivots = pivots.size();
 	    }
+	    else {   std::cout << "grandchildren size was 0 ..." << std::endl; }
 	  }
     	}
 
@@ -720,13 +727,15 @@ private:
     void recursive_adopt(betree &bet) {
 	// For all kids, call adopt()
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-	    it->second.child->adopt(bet);
+	    //it->second.child->adopt(bet);
+	    auto max_piv = max_pivots;
+	    it->second.child->adopt(bet, max_piv);
 	}
 	
 	// adopt after children have adopted
-	if (ready_for_adoption) {
-		adopt(bet);
-	}
+	//adopt(bet);
+	auto max_piv = max_pivots;
+	adopt(bet, max_piv);
     }
 
 
@@ -1071,7 +1080,8 @@ private:
       return result;
     }
 
-    Value query(const betree &bet, const Key k)
+    Value query(betree &bet, const Key k)
+    //Value query(const betree &bet, const Key k)
     {
       debug(std::cout << "Querying " << this << std::endl);
       // If this node is less than the tunable epsilon tree level
@@ -1143,6 +1153,22 @@ private:
         message_iter++;
       }
 
+/*
+      if (ready_for_adoption) {
+	std::cout << "adopting on this node!" << std::endl;
+	// Adopt if node is flagged as ready_for_adoption, do it after abtained result to return
+        if (node_level < bet.tunable_epsilon_level) {
+          auto max_piv = max_pivots;
+	  adopt(bet, max_piv);
+        } // else if node is at node_level, when ready_for_adoption, recursively adopt bottom-up for 
+        //   all nodes that inherit this nodes Epsilon, and this node adopts too
+        else if (node_level == bet.tunable_epsilon_level) {
+	  auto max_piv = max_pivots;
+	  //recursive_adopt(bet, max_piv);
+   	  adopt(bet, max_piv);
+        }
+      }
+*/
       return v;
     }
 
@@ -1267,6 +1293,8 @@ public:
     root = ss->allocate(new node(starting_epsilon, 0, ops_before_update, window_size));
     auto new_node_id = glob_id_inc++; // init node_id
     root->set_node_id(new_node_id);
+
+    std::cout << "isdynamic: " << std::to_string(isdynamic) << std::endl;
   }
 
   // Wrapper methods to call recursive methods to 
@@ -1327,8 +1355,7 @@ public:
 
 
     if (root->ready_for_adoption) {
-      //root->recursive_adopt(*this);
-      root->adopt(*this);
+      root->adopt(*this, root->max_pivots);
     }
 
     return v;
