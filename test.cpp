@@ -408,8 +408,8 @@ int main(int argc, char **argv)
   
   one_file_per_object_backing_store ofpobs(backing_store_dir);
   swap_space sspace(&ofpobs, cache_size);
-  //betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
-  betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size, true, 0.4, 0, 100, 100);
+  //betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size); // non dynamic tree
+  betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size, true, 0.4, 1, 100, 100); // dyanmic tree
 
   if (strcmp(mode, "test") == 0) 
     test(b, nops, number_of_distinct_keys, script_input, script_output);

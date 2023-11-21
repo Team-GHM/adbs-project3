@@ -335,7 +335,6 @@ private:
     void set_epsilon(float e) {
       auto prev_max_pivots = max_pivots;
 
-      std::cout << "setting epsilon ..." << std::endl;
       epsilon = e;
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -705,7 +704,6 @@ private:
 	      // update pivot count
 	      total_pivots = pivots.size();
 	    }
-	    else {   std::cout << "grandchildren size was 0 ..." << std::endl; }
 	  }
     	}
 
@@ -724,17 +722,13 @@ private:
 
     // Adopt() recursively from the bottom to the top.
     // Nodes only adopt if they recently got bigger max_pivots
-    void recursive_adopt(betree &bet) {
+    void recursive_adopt(betree &bet, uint64_t max_piv) {
 	// For all kids, call adopt()
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-	    //it->second.child->adopt(bet);
-	    auto max_piv = max_pivots;
 	    it->second.child->adopt(bet, max_piv);
 	}
 	
 	// adopt after children have adopted
-	//adopt(bet);
-	auto max_piv = max_pivots;
 	adopt(bet, max_piv);
     }
 
@@ -1153,22 +1147,18 @@ private:
         message_iter++;
       }
 
-/*
       if (ready_for_adoption) {
 	std::cout << "adopting on this node!" << std::endl;
 	// Adopt if node is flagged as ready_for_adoption, do it after abtained result to return
         if (node_level < bet.tunable_epsilon_level) {
-          auto max_piv = max_pivots;
-	  adopt(bet, max_piv);
+	  adopt(bet, max_pivots);
         } // else if node is at node_level, when ready_for_adoption, recursively adopt bottom-up for 
         //   all nodes that inherit this nodes Epsilon, and this node adopts too
         else if (node_level == bet.tunable_epsilon_level) {
-	  auto max_piv = max_pivots;
-	  //recursive_adopt(bet, max_piv);
-   	  adopt(bet, max_piv);
+	  recursive_adopt(bet, max_pivots);
         }
       }
-*/
+
       return v;
     }
 
@@ -1293,8 +1283,6 @@ public:
     root = ss->allocate(new node(starting_epsilon, 0, ops_before_update, window_size));
     auto new_node_id = glob_id_inc++; // init node_id
     root->set_node_id(new_node_id);
-
-    std::cout << "isdynamic: " << std::to_string(isdynamic) << std::endl;
   }
 
   // Wrapper methods to call recursive methods to 
@@ -1352,11 +1340,6 @@ public:
   Value query(Key k)
   {
     Value v = root->query(*this, k);
-
-
-    if (root->ready_for_adoption) {
-      root->adopt(*this, root->max_pivots);
-    }
 
     return v;
   }
