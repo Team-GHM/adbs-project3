@@ -718,11 +718,10 @@ private:
    
 
     // Adopt() recursively from the bottom to the top.
-    // Nodes only adopt if they recently got bigger max_pivots
+    // Nodes only adopt if they recently got bigger max_pivots (flagged as ready_for_adoption)
     void recursive_adopt(betree &bet) {
 	// For all kids, call adopt()
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-	    //it->second.child->adopt(bet);
 	    it->second.child->recursive_adopt(bet);
 	}
 	
@@ -1330,8 +1329,7 @@ public:
 
 
     if (root->ready_for_adoption) {
-      root->recursive_adopt(*this);
-      //root->adopt(*this);
+	root->recursive_adopt(*this);
     }
 
     return v;
