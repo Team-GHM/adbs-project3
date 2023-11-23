@@ -692,8 +692,9 @@ private:
 	      // adopt sibling grandchildren
 	      pivots.insert(grandchildren.begin(), grandchildren.end());
 
-	      std::cout << "adopted 1 or more children... " << std::endl;
-
+	      std::cout << "---:" << std::endl;
+	      std::cout << "adopted "<< std::to_string(grandchildren.size()) << " or more children at node_level:" << std::to_string(node_level) << "... " << std::endl;
+		std::cout << "-----|" << std::endl;
 	      // remove element at 0 index of cur_child_ids and push everything back
 	      // to assess the next child that isn't adopted
 	      cur_child_ids.erase(cur_child_ids.begin());
@@ -703,6 +704,7 @@ private:
 	    }
 	  }
     	}
+	std::cout << "End of Adopt ---:" << std::endl;
 
 	// After adoption, go through all children of this node and udpates child_size
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
