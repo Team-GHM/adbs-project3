@@ -615,8 +615,9 @@ private:
     // their parent (child of this node) is killed.
     //
     // Currently, if grandchildren are adopted and their parents are killed, all of the elements
-    // in those parents (former children of this node) will be applied to this node - so, the message
-    // buffer in this node will temporarily be > max_messages potentially
+    // in those parents (former children of this node) will be forwarded and applied to the 
+    // grandchildren being adopted. The adopted children may have > max_messges after this forwarding
+    // process (they will be naturally handled by a flush later). 
     //
     // -----------------------------------------------------------------------------------------
     void adopt(betree &bet) {
