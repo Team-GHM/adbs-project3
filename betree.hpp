@@ -716,7 +716,6 @@ private:
    
 
     // Adopt() recursively from the bottom to the top.
-    // Nodes only adopt if they recently got bigger max_pivots (flagged as ready_for_adoption)
     void recursive_adopt(betree &bet) {
 	// For all kids, call adopt()
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
@@ -1071,7 +1070,6 @@ private:
       return result;
     }
 
-    //Value query(const betree &bet, const Key k)
     Value query(betree &bet, const Key k)
     {
       debug(std::cout << "Querying " << this << std::endl);

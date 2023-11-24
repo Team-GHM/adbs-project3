@@ -409,8 +409,10 @@ int main(int argc, char **argv)
   one_file_per_object_backing_store ofpobs(backing_store_dir);
   swap_space sspace(&ofpobs, cache_size);
   
+  // Launch test with non-adaptive tree:
   //betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
   
+  // Launch test with adaptive tree:
   // (sspace, maxnodesize, minnodesize, minflushsize, isdynamic, startingepsilon, tunableepsilonlevel, opsbeforeupdate, windowsize)
   betree<uint64_t, std::string> b(&sspace, max_node_size, max_node_size/4, min_flush_size, true, 0.4, 0, 100, 100);
   
