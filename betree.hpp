@@ -716,11 +716,10 @@ private:
    
 
     // Adopt() recursively from the bottom to the top.
-    // Nodes only adopt if they recently got bigger max_pivots
     void recursive_adopt(betree &bet) {
 	// For all kids, call adopt()
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-	    it->second.child->adopt(bet);
+	    it->second.child->recursive_adopt(bet);
 	}
 	
 	// adopt after children have adopted
@@ -1071,7 +1070,7 @@ private:
       return result;
     }
 
-    Value query(const betree &bet, const Key k)
+    Value query(betree &bet, const Key k)
     {
       debug(std::cout << "Querying " << this << std::endl);
       // If this node is less than the tunable epsilon tree level
@@ -1142,6 +1141,16 @@ private:
         v = v + message_iter->second.val;
         message_iter++;
       }
+
+      // if node is flagged as ready to adopt 
+      if (ready_for_adoption) {
+	if (node_level < bet.tunable_epsilon_level) {
+	    adopt(bet);
+	} 
+	else if (node_level == bet.tunable_epsilon_level){
+	    recursive_adopt(bet);
+	}
+     }
 
       return v;
     }
@@ -1324,12 +1333,6 @@ public:
   Value query(Key k)
   {
     Value v = root->query(*this, k);
-
-
-    if (root->ready_for_adoption) {
-      //root->recursive_adopt(*this);
-      root->adopt(*this);
-    }
 
     return v;
   }
