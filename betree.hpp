@@ -345,6 +345,7 @@ private:
       }
     }
 
+    // decrement node_level when adopted
     void decrement_node_level() {
 	node_level--;
     }
@@ -577,19 +578,20 @@ private:
 			}
 		   }
 	       }
-	       else { // last  or only pivot
+	       else { // last or only pivot
 	           apply_it->second.child->apply(mkey, elt, bet.default_value);
 	       	   break;
 	       }
         }
     }
 
-    // Forwards messages in this node to children to children
+    // Forwards messages in this node to children
     void forward_messages(betree &bet){
 	      // go through messages     
               for (auto elt_it = elements.begin(); elt_it != elements.end(); ++elt_it) {
 
                   bool found_range = false;
+		  // Find the child where key is in range so we can apply the message
                   for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it) {
                         auto key = elt_it->first.key;
                         if (apply_it->second.child->is_in_range(key)) {
@@ -662,22 +664,21 @@ private:
 
 	    // see if we can adopt all sibling grandchildren
 	    if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
-		  continue; // don't adopt the set of grandchildren
+		  continue; // don't adopt the set of grandchildren if it would result in > max_pivots
 	    }
 
 	    auto child_to_erase = it->second.child;// the child whose grandchildren we'll adopt
 
-	    // Skip is child is leaf, there's no grandchildren to adopt
+	    // Skip if child is leaf, there's no grandchildren to adopt
 	    if (child_to_erase->is_leaf()) {
 		    continue;
 	    }
 
-	    pivot_map grandchildren = child_to_erase->pivots; // granchildren of this child
+	    pivot_map grandchildren = child_to_erase->pivots; // granchildren of the child
 	    
-	    // if there are grandchildren to adopt
 	    if (grandchildren.size() > 0) {
 
-	      // forward child's messages to children
+	      // forward child's messages to grandchildren
 	      child_to_erase->forward_messages(bet);
 
 	      // kill child
@@ -718,12 +719,12 @@ private:
 
     // Adopt() recursively from the bottom to the top.
     void recursive_adopt(betree &bet) {
-	// For all kids, call adopt()
+	// Recurse down to bottom of tree
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
 	    it->second.child->recursive_adopt(bet);
 	}
 	
-	// adopt after children have adopted
+	// adopt after children have adopted (if flagged as ready)
 	if (ready_for_adoption) {
 		adopt(bet);
 	}
