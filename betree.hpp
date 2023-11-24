@@ -692,9 +692,6 @@ private:
 	      // adopt sibling grandchildren
 	      pivots.insert(grandchildren.begin(), grandchildren.end());
 
-	      std::cout << "---:" << std::endl;
-	      std::cout << "adopted "<< std::to_string(grandchildren.size()) << " or more children at node_level:" << std::to_string(node_level) << "... " << std::endl;
-		std::cout << "-----|" << std::endl;
 	      // remove element at 0 index of cur_child_ids and push everything back
 	      // to assess the next child that isn't adopted
 	      cur_child_ids.erase(cur_child_ids.begin());
@@ -704,7 +701,6 @@ private:
 	    }
 	  }
     	}
-	std::cout << "End of Adopt ---:" << std::endl;
 
 	// After adoption, go through all children of this node and udpates child_size
 	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
@@ -1075,7 +1071,8 @@ private:
       return result;
     }
 
-    Value query(const betree &bet, const Key k)
+    //Value query(const betree &bet, const Key k)
+    Value query(betree &bet, const Key k)
     {
       debug(std::cout << "Querying " << this << std::endl);
       // If this node is less than the tunable epsilon tree level
@@ -1146,6 +1143,15 @@ private:
         v = v + message_iter->second.val;
         message_iter++;
       }
+
+      if (ready_for_adoption) {
+	if (node_level < bet.tunable_epsilon_level) {
+	    adopt(bet);
+	} 
+	else if (node_level == bet.tunable_epsilon_level){
+	    recursive_adopt(bet);
+	}
+     }
 
       return v;
     }
@@ -1328,11 +1334,6 @@ public:
   Value query(Key k)
   {
     Value v = root->query(*this, k);
-
-
-    if (root->ready_for_adoption) {
-	root->recursive_adopt(*this);
-    }
 
     return v;
   }
