@@ -1144,6 +1144,7 @@ private:
         message_iter++;
       }
 
+      // if node is flagged as ready to adopt 
       if (ready_for_adoption) {
 	if (node_level < bet.tunable_epsilon_level) {
 	    adopt(bet);
