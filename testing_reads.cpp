@@ -135,7 +135,7 @@ int main(int argc, char **argv)
     float startingepsilon = 0.4; 
     uint64_t tunableepsilonlevel = 1;
     uint64_t opsbeforeupdate = 100;
-    uint64_t windowsize = 100;
+    uint64_t windowsize = 1000;
     bool is_dynamic = true;
 
     int opt;

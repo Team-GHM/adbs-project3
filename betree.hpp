@@ -1249,7 +1249,7 @@ public:
          uint64_t minnodesize = 64 / 4,
          uint64_t minflushsize = 64/ 16, 
          bool isdynamic = false,
-         float startingepsilon = 0.4, 
+         float startingepsilon = 0, 
          uint64_t tunableepsilonlevel = 0,
          uint64_t opsbeforeupdate = 100,
          uint64_t windowsize = 100)
