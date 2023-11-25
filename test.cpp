@@ -19,14 +19,14 @@ void timer_start(uint64_t &timer)
 {
   struct timeval t;
   assert(!gettimeofday(&t, NULL));
-  timer -= 1000000*t.tv_sec + t.tv_usec;
+  timer -= 1000000 * t.tv_sec + t.tv_usec;
 }
 
 void timer_stop(uint64_t &timer)
 {
   struct timeval t;
   assert(!gettimeofday(&t, NULL));
-  timer += 1000000*t.tv_sec + t.tv_usec;
+  timer += 1000000 * t.tv_sec + t.tv_usec;
 }
 
 int next_command(FILE *input, int *op, uint64_t *arg)
@@ -37,49 +37,68 @@ int next_command(FILE *input, int *op, uint64_t *arg)
   ret = fscanf(input, "%s %ld", command, arg);
   if (ret == EOF)
     return EOF;
-  else if (ret != 2) {
+  else if (ret != 2)
+  {
     fprintf(stderr, "Parse error\n");
     exit(3);
   }
-  
-  if (strcmp(command, "Inserting") == 0) {
+
+  if (strcmp(command, "Inserting") == 0)
+  {
     *op = 0;
-  } else if (strcmp(command, "Updating") == 0) {
+  }
+  else if (strcmp(command, "Updating") == 0)
+  {
     *op = 1;
-  } else if (strcmp(command, "Deleting") == 0) {
+  }
+  else if (strcmp(command, "Deleting") == 0)
+  {
     *op = 2;
-  } else if (strcmp(command, "Query") == 0) {
+  }
+  else if (strcmp(command, "Query") == 0)
+  {
     *op = 3;
-    if (1 != fscanf(input, " -> %s", command)) {
+    if (1 != fscanf(input, " -> %s", command))
+    {
       fprintf(stderr, "Parse error\n");
       exit(3);
     }
-  } else if (strcmp(command, "Full_scan") == 0) {
+  }
+  else if (strcmp(command, "Full_scan") == 0)
+  {
     *op = 4;
-  } else if (strcmp(command, "Lower_bound_scan") == 0) {
+  }
+  else if (strcmp(command, "Lower_bound_scan") == 0)
+  {
     *op = 5;
-  } else if (strcmp(command, "Upper_bound_scan") == 0) {
+  }
+  else if (strcmp(command, "Upper_bound_scan") == 0)
+  {
     *op = 6;
-  } else {
+  }
+  else
+  {
     fprintf(stderr, "Unknown command: %s\n", command);
     exit(1);
   }
-  
+
   return 0;
 }
 
-template<class Key, class Value>
+template <class Key, class Value>
 void do_scan(typename betree<Key, Value>::iterator &betit,
-	     typename std::map<Key, Value>::iterator &refit,
-	     betree<Key, Value> &b,
-	     typename std::map<Key, Value> &reference)
+             typename std::map<Key, Value>::iterator &refit,
+             betree<Key, Value> &b,
+             typename std::map<Key, Value> &reference)
 {
-  while (refit != reference.end()) {
+  while (refit != reference.end())
+  {
     assert(betit != b.end());
     assert(betit.first == refit->first);
     assert(betit.second == refit->second);
     ++refit;
-    if (refit == reference.end()) {
+    if (refit == reference.end())
+    {
       debug(std::cout << "Almost done" << std::endl);
     }
     ++betit;
@@ -87,7 +106,7 @@ void do_scan(typename betree<Key, Value>::iterator &betit,
   assert(betit == b.end());
 }
 
-#define DEFAULT_TEST_MAX_NODE_SIZE (1ULL<<6)
+#define DEFAULT_TEST_MAX_NODE_SIZE (1ULL << 6)
 #define DEFAULT_TEST_MIN_FLUSH_SIZE (DEFAULT_TEST_MAX_NODE_SIZE / 4)
 #define DEFAULT_TEST_CACHE_SIZE (4)
 #define DEFAULT_TEST_NDISTINCT_KEYS (1ULL << 10)
@@ -96,172 +115,183 @@ void do_scan(typename betree<Key, Value>::iterator &betit,
 void usage(char *name)
 {
   std::cout
-    << "Usage: " << name << " [OPTIONS]" << std::endl
-    << "Tests the betree implementation" << std::endl
-    << std::endl
-    << "Options are" << std::endl
-    << "  Required:"   << std::endl
-    << "    -d <backing_store_directory>                    [ default: none, parameter is required ]"           << std::endl
-    << "    -m  <mode>  (test or benchmark-<mode>)          [ default: none, parameter required ]"              << std::endl
-    << "        benchmark modes:"                                                                               << std::endl
-    << "          upserts    "                                                                                  << std::endl
-    << "          queries    "                                                                                  << std::endl
-    << "  Betree tuning parameters:" << std::endl
-    << "    -N <max_node_size>            (in elements)     [ default: " << DEFAULT_TEST_MAX_NODE_SIZE  << " ]" << std::endl
-    << "    -f <min_flush_size>           (in elements)     [ default: " << DEFAULT_TEST_MIN_FLUSH_SIZE << " ]" << std::endl
-    << "    -C <max_cache_size>           (in betree nodes) [ default: " << DEFAULT_TEST_CACHE_SIZE     << " ]" << std::endl
-    << "  Options for both tests and benchmarks" << std::endl
-    << "    -k <number_of_distinct_keys>                    [ default: " << DEFAULT_TEST_NDISTINCT_KEYS << " ]" << std::endl
-    << "    -t <number_of_operations>                       [ default: " << DEFAULT_TEST_NOPS           << " ]" << std::endl
-    << "    -s <random_seed>                                [ default: random ]"                                << std::endl
-    << "  Test scripting options" << std::endl
-    << "    -o <output_script>                              [ default: no output ]"                             << std::endl
-    << "    -i <script_file>                                [ default: none ]"                                  << std::endl;
+      << "Usage: " << name << " [OPTIONS]" << std::endl
+      << "Tests the betree implementation" << std::endl
+      << std::endl
+      << "Options are" << std::endl
+      << "  Required:" << std::endl
+      << "    -d <backing_store_directory>                    [ default: none, parameter is required ]" << std::endl
+      << "    -m  <mode>  (test or benchmark-<mode>)          [ default: none, parameter required ]" << std::endl
+      << "        benchmark modes:" << std::endl
+      << "          upserts    " << std::endl
+      << "          queries    " << std::endl
+      << "  Betree tuning parameters:" << std::endl
+      << "    -N <max_node_size>            (in elements)     [ default: " << DEFAULT_TEST_MAX_NODE_SIZE << " ]" << std::endl
+      << "    -f <min_flush_size>           (in elements)     [ default: " << DEFAULT_TEST_MIN_FLUSH_SIZE << " ]" << std::endl
+      << "    -C <max_cache_size>           (in betree nodes) [ default: " << DEFAULT_TEST_CACHE_SIZE << " ]" << std::endl
+      << "  Options for both tests and benchmarks" << std::endl
+      << "    -k <number_of_distinct_keys>                    [ default: " << DEFAULT_TEST_NDISTINCT_KEYS << " ]" << std::endl
+      << "    -t <number_of_operations>                       [ default: " << DEFAULT_TEST_NOPS << " ]" << std::endl
+      << "    -s <random_seed>                                [ default: random ]" << std::endl
+      << "  Test scripting options" << std::endl
+      << "    -o <output_script>                              [ default: no output ]" << std::endl
+      << "    -i <script_file>                                [ default: none ]" << std::endl;
 }
 
 int test(betree<uint64_t, std::string> &b,
-	 uint64_t nops,
-	 uint64_t number_of_distinct_keys,
-	 FILE *script_input,
-	 FILE *script_output)
+         uint64_t nops,
+         uint64_t number_of_distinct_keys,
+         FILE *script_input,
+         FILE *script_output)
 {
   std::map<uint64_t, std::string> reference;
 
-  for (unsigned int i = 0; i < nops; i++) {
+  for (unsigned int i = 0; i < nops; i++)
+  {
     int op;
     uint64_t t;
-    if (script_input) {
+    if (script_input)
+    {
       int r = next_command(script_input, &op, &t);
       if (r == EOF)
-	exit(0);
+        exit(0);
       else if (r < 0)
-	exit(4);
-    } else {
+        exit(4);
+    }
+    else
+    {
       op = rand() % 7;
       t = rand() % number_of_distinct_keys;
     }
-    
-    switch (op) {
+
+    switch (op)
+    {
     case 0: // insert
       if (script_output)
-	fprintf(script_output, "Inserting %lu\n", t);
+        fprintf(script_output, "Inserting %lu\n", t);
       b.insert(t, std::to_string(t) + ":");
       reference[t] = std::to_string(t) + ":";
       break;
     case 1: // update
       if (script_output)
-	fprintf(script_output, "Updating %lu\n", t);
+        fprintf(script_output, "Updating %lu\n", t);
       b.update(t, std::to_string(t) + ":");
       if (reference.count(t) > 0)
-      	reference[t] += std::to_string(t) + ":";
+        reference[t] += std::to_string(t) + ":";
       else
-      	reference[t] = std::to_string(t) + ":";
+        reference[t] = std::to_string(t) + ":";
       break;
     case 2: // delete
       if (script_output)
-	fprintf(script_output, "Deleting %lu\n", t);
+        fprintf(script_output, "Deleting %lu\n", t);
       b.erase(t);
       reference.erase(t);
       break;
     case 3: // query
-      try {
-	std::string bval = b.query(t);
-	assert(reference.count(t) > 0);
-	std::string rval = reference[t];
-	assert(bval == rval);
-	if (script_output)
-	  fprintf(script_output, "Query %lu -> %s\n", t, bval.c_str());
-      } catch (std::out_of_range & e) {
-	if (script_output)
-	  fprintf(script_output, "Query %lu -> DNE\n", t);
-	assert(reference.count(t) == 0);
+      try
+      {
+        std::string bval = b.query(t);
+        assert(reference.count(t) > 0);
+        std::string rval = reference[t];
+        assert(bval == rval);
+        if (script_output)
+          fprintf(script_output, "Query %lu -> %s\n", t, bval.c_str());
+      }
+      catch (std::out_of_range &e)
+      {
+        if (script_output)
+          fprintf(script_output, "Query %lu -> DNE\n", t);
+        assert(reference.count(t) == 0);
       }
       break;
     case 4: // full scan
-      {
-	if (script_output)
-	  fprintf(script_output, "Full_scan 0\n");
-	auto betit = b.begin();
-	auto refit = reference.begin();
-	do_scan(betit, refit, b, reference);
-      }
-      break;
+    {
+      if (script_output)
+        fprintf(script_output, "Full_scan 0\n");
+      auto betit = b.begin();
+      auto refit = reference.begin();
+      do_scan(betit, refit, b, reference);
+    }
+    break;
     case 5: // lower-bound scan
-      {
-	if (script_output)
-	  fprintf(script_output, "Lower_bound_scan %lu\n", t);
-	auto betit = b.lower_bound(t);
-	auto refit = reference.lower_bound(t);
-	do_scan(betit, refit, b, reference);
-      }
-      break;
+    {
+      if (script_output)
+        fprintf(script_output, "Lower_bound_scan %lu\n", t);
+      auto betit = b.lower_bound(t);
+      auto refit = reference.lower_bound(t);
+      do_scan(betit, refit, b, reference);
+    }
+    break;
     case 6: // scan
-      {
-	if (script_output)
-	  fprintf(script_output, "Upper_bound_scan %lu\n", t);
-	auto betit = b.upper_bound(t);
-	auto refit = reference.upper_bound(t);
-	do_scan(betit, refit, b, reference);
-      }
-      break;
+    {
+      if (script_output)
+        fprintf(script_output, "Upper_bound_scan %lu\n", t);
+      auto betit = b.upper_bound(t);
+      auto refit = reference.upper_bound(t);
+      do_scan(betit, refit, b, reference);
+    }
+    break;
     default:
       abort();
     }
   }
 
   std::cout << "Test PASSED" << std::endl;
-  
+
   return 0;
 }
 
 void benchmark_upserts(betree<uint64_t, std::string> &b,
-		       uint64_t nops,
-		       uint64_t number_of_distinct_keys,
-		       uint64_t random_seed)
+                       uint64_t nops,
+                       uint64_t number_of_distinct_keys,
+                       uint64_t random_seed)
 {
   uint64_t overall_timer = 0;
-  for (uint64_t j = 0; j < 100; j++) {
+  for (uint64_t j = 0; j < 100; j++)
+  {
     uint64_t timer = 0;
     timer_start(timer);
-    for (uint64_t i = 0; i < nops / 100; i++) {
+    for (uint64_t i = 0; i < nops / 100; i++)
+    {
       uint64_t t = rand() % number_of_distinct_keys;
       b.update(t, std::to_string(t) + ":");
     }
     timer_stop(timer);
-    printf("%ld %ld %ld\n", j, nops/100, timer);
+    printf("%ld %ld %ld\n", j, nops / 100, timer);
     overall_timer += timer;
   }
 
-  double throughput = (1.0*nops*1000000)/overall_timer;
-  printf("# overall: %ld %ld %f\n", 100*(nops/100), overall_timer, throughput);
+  double throughput = (1.0 * nops * 1000000) / overall_timer;
+  printf("# overall: %ld %ld %f\n", 100 * (nops / 100), overall_timer, throughput);
 }
 
 void benchmark_queries(betree<uint64_t, std::string> &b,
-		       uint64_t nops,
-		       uint64_t number_of_distinct_keys,
-		       uint64_t random_seed)
+                       uint64_t nops,
+                       uint64_t number_of_distinct_keys,
+                       uint64_t random_seed)
 {
-  
+
   // Pre-load the tree with data
   srand(random_seed);
-  for (uint64_t i = 0; i < nops; i++) {
+  for (uint64_t i = 0; i < nops; i++)
+  {
     uint64_t t = rand() % number_of_distinct_keys;
     b.update(t, std::to_string(t) + ":");
   }
 
-	// Now go back and query it
+  // Now go back and query it
   srand(random_seed);
   uint64_t overall_timer = 0;
-	timer_start(overall_timer);
-  for (uint64_t i = 0; i < nops; i++) {
+  timer_start(overall_timer);
+  for (uint64_t i = 0; i < nops; i++)
+  {
     uint64_t t = rand() % number_of_distinct_keys;
     b.query(t);
   }
-	timer_stop(overall_timer);
+  timer_stop(overall_timer);
 
-  double throughput = (1.0*nops*1000000)/overall_timer;
+  double throughput = (1.0 * nops * 1000000) / overall_timer;
   printf("# overall: %ld %ld, %f\n", nops, overall_timer, throughput);
-
 }
 
 int main(int argc, char **argv)
@@ -276,16 +306,18 @@ int main(int argc, char **argv)
   char *script_infile = NULL;
   char *script_outfile = NULL;
   unsigned int random_seed = time(NULL) * getpid();
- 
+
   int opt;
   char *term;
-    
+
   //////////////////////
   // Argument parsing //
   //////////////////////
-  
-  while ((opt = getopt(argc, argv, "m:d:N:f:C:o:k:t:s:i:")) != -1) {
-    switch (opt) {
+
+  while ((opt = getopt(argc, argv, "m:d:N:f:C:o:k:t:s:i:")) != -1)
+  {
+    switch (opt)
+    {
     case 'm':
       mode = optarg;
       break;
@@ -294,26 +326,29 @@ int main(int argc, char **argv)
       break;
     case 'N':
       max_node_size = strtoull(optarg, &term, 10);
-      if (*term) {
-	std::cerr << "Argument to -N must be an integer" << std::endl;
-	usage(argv[0]);
-	exit(1);
+      if (*term)
+      {
+        std::cerr << "Argument to -N must be an integer" << std::endl;
+        usage(argv[0]);
+        exit(1);
       }
       break;
     case 'f':
       min_flush_size = strtoull(optarg, &term, 10);
-      if (*term) {
-	std::cerr << "Argument to -f must be an integer" << std::endl;
-	usage(argv[0]);
-	exit(1);
+      if (*term)
+      {
+        std::cerr << "Argument to -f must be an integer" << std::endl;
+        usage(argv[0]);
+        exit(1);
       }
       break;
     case 'C':
       cache_size = strtoull(optarg, &term, 10);
-      if (*term) {
-	std::cerr << "Argument to -C must be an integer" << std::endl;
-	usage(argv[0]);
-	exit(1);
+      if (*term)
+      {
+        std::cerr << "Argument to -C must be an integer" << std::endl;
+        usage(argv[0]);
+        exit(1);
       }
       break;
     case 'o':
@@ -321,26 +356,29 @@ int main(int argc, char **argv)
       break;
     case 'k':
       number_of_distinct_keys = strtoull(optarg, &term, 10);
-      if (*term) {
-	std::cerr << "Argument to -k must be an integer" << std::endl;
-	usage(argv[0]);
-	exit(1);
+      if (*term)
+      {
+        std::cerr << "Argument to -k must be an integer" << std::endl;
+        usage(argv[0]);
+        exit(1);
       }
       break;
     case 't':
       nops = strtoull(optarg, &term, 10);
-      if (*term) {
-	std::cerr << "Argument to -t must be an integer" << std::endl;
-	usage(argv[0]);
-	exit(1);
+      if (*term)
+      {
+        std::cerr << "Argument to -t must be an integer" << std::endl;
+        usage(argv[0]);
+        exit(1);
       }
       break;
     case 's':
       random_seed = strtoull(optarg, &term, 10);
-      if (*term) {
-	std::cerr << "Argument to -s must be an integer" << std::endl;
-	usage(argv[0]);
-	exit(1);
+      if (*term)
+      {
+        std::cerr << "Argument to -s must be an integer" << std::endl;
+        usage(argv[0]);
+        exit(1);
       }
       break;
     case 'i':
@@ -352,43 +390,49 @@ int main(int argc, char **argv)
       exit(1);
     }
   }
-  
+
   FILE *script_input = NULL;
   FILE *script_output = NULL;
 
   if (mode == NULL ||
-      (strcmp(mode, "test") != 0
-       && strcmp(mode, "benchmark-upserts") != 0
-			 && strcmp(mode, "benchmark-queries") != 0)) {
+      (strcmp(mode, "test") != 0 && strcmp(mode, "benchmark-upserts") != 0 && strcmp(mode, "benchmark-queries") != 0))
+  {
     std::cerr << "Must specify a mode of \"test\" or \"benchmark\"" << std::endl;
     usage(argv[0]);
     exit(1);
   }
 
-  if (strncmp(mode, "benchmark", strlen("benchmark")) == 0) {
-    if (script_infile) {
+  if (strncmp(mode, "benchmark", strlen("benchmark")) == 0)
+  {
+    if (script_infile)
+    {
       std::cerr << "Cannot specify an input script in benchmark mode" << std::endl;
       usage(argv[0]);
       exit(1);
     }
-    if (script_outfile) {
+    if (script_outfile)
+    {
       std::cerr << "Cannot specify an output script in benchmark mode" << std::endl;
       usage(argv[0]);
       exit(1);
     }
   }
-  
-  if (script_infile) {
+
+  if (script_infile)
+  {
     script_input = fopen(script_infile, "r");
-    if (script_input == NULL) {
+    if (script_input == NULL)
+    {
       perror("Couldn't open input file");
       exit(1);
     }
   }
-  
-  if (script_outfile) {
+
+  if (script_outfile)
+  {
     script_output = fopen(script_outfile, "w");
-    if (script_output == NULL) {
+    if (script_output == NULL)
+    {
       perror("Couldn't open output file");
       exit(1);
     }
@@ -396,39 +440,39 @@ int main(int argc, char **argv)
 
   srand(random_seed);
 
-  if (backing_store_dir == NULL) {
+  if (backing_store_dir == NULL)
+  {
     std::cerr << "-d <backing_store_directory> is required" << std::endl;
     usage(argv[0]);
     exit(1);
   }
-  
+
   ////////////////////////////////////////////////////////
   // Construct a betree and run the tests or benchmarks //
   ////////////////////////////////////////////////////////
-  
+
   one_file_per_object_backing_store ofpobs(backing_store_dir);
   swap_space sspace(&ofpobs, cache_size);
-  
+
   // Launch test with non-adaptive tree:
-  //betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
-  
+  // betree<uint64_t, std::string> b(&sspace, max_node_size, min_flush_size);
+
   // Launch test with adaptive tree:
   // (sspace, maxnodesize, minnodesize, minflushsize, isdynamic, startingepsilon, tunableepsilonlevel, opsbeforeupdate, windowsize)
-  betree<uint64_t, std::string> b(&sspace, max_node_size, max_node_size/4, min_flush_size, true, 0.4, 0, 100, 100);
-  
-  if (strcmp(mode, "test") == 0) 
+  betree<uint64_t, std::string> b(&sspace, max_node_size, max_node_size / 4, min_flush_size, true, 0.4, 0, 100, 100);
+
+  if (strcmp(mode, "test") == 0)
     test(b, nops, number_of_distinct_keys, script_input, script_output);
   else if (strcmp(mode, "benchmark-upserts") == 0)
     benchmark_upserts(b, nops, number_of_distinct_keys, random_seed);
   else if (strcmp(mode, "benchmark-queries") == 0)
     benchmark_queries(b, nops, number_of_distinct_keys, random_seed);
-  
+
   if (script_input)
     fclose(script_input);
-  
+
   if (script_output)
     fclose(script_output);
 
   return 0;
 }
-
