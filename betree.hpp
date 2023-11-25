@@ -199,7 +199,6 @@ template <class Key, class Value>
 class betree
 {
 private:
-
   class node;
   // We let a swap_space handle all the I/O.
   typedef typename swap_space::pointer<node> node_pointer;
@@ -242,11 +241,12 @@ private:
     // Init class for sliding window statistic tracker on the Tree
     // with default value for W value (size of sliding window)
     window_stat_tracker stat_tracker;
+
   public:
     // Child pointers
     pivot_map pivots;
     message_map elements;
-    // Size of node to base other parameters on 
+    // Size of node to base other parameters on
     uint64_t max_node_size;
     uint64_t min_node_size;
     uint64_t min_flush_size;
@@ -260,17 +260,9 @@ private:
     uint64_t const window_size;
     uint64_t node_id;
     bool ready_for_adoption = false;
-    
+
     node()
-    : max_node_size(64)
-    , min_node_size(64 / 4)
-    , min_flush_size(64 / 16)
-    , epsilon(0.4)
-    , node_level(0)
-    , operation_count(0)
-    , ops_before_epsilon_update(100)
-    , window_size(100)
-    , node_id(-1)
+        : max_node_size(64), min_node_size(64 / 4), min_flush_size(64 / 16), epsilon(0.4), node_level(0), operation_count(0), ops_before_epsilon_update(100), window_size(100), node_id(-1)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
@@ -278,31 +270,25 @@ private:
     }
 
     node(float e, uint64_t level, uint64_t opsbeforeupdate = 100, uint64_t windowsize = 100)
-    : max_node_size(64)
-    , min_node_size(64 / 4)
-    , min_flush_size(64 / 16)
-    , epsilon(e)
-    , node_level(level)
-    , operation_count(0)
-    , ops_before_epsilon_update(opsbeforeupdate)
-    , window_size(windowsize)
-    , node_id(-1)
+        : max_node_size(64), min_node_size(64 / 4), min_flush_size(64 / 16), epsilon(e), node_level(level), operation_count(0), ops_before_epsilon_update(opsbeforeupdate), window_size(windowsize), node_id(-1)
     {
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
       stat_tracker = window_stat_tracker(window_size);
     }
 
-    uint64_t get_node_id(){
-	    return node_id;
+    uint64_t get_node_id()
+    {
+      return node_id;
     }
-    void set_node_id(uint64_t new_id){
-	node_id = new_id;
+    void set_node_id(uint64_t new_id)
+    {
+      node_id = new_id;
     }
 
     uint64_t calculate_max_pivots()
     {
-  
+
       // Calculate B^(Epsilon)
       float B_eps = pow(max_node_size, epsilon);
       uint64_t B = (uint64_t)round(B_eps);
@@ -311,63 +297,77 @@ private:
       int remainder = B % 4;
       int max_pivots;
 
-      if (remainder < 2) {
-                max_pivots = B - remainder;
-      } else if (remainder == 2) {
-	      if (B > 32){
-                    // round up to nearest 4 multiple
-                    // for optimizing towards reads
-                    max_pivots = B + remainder;
- 	      } 
-	      else {
-                    // round down to nearest 4 multiple
-                    // for optimizing towards rights
-                    max_pivots = B - remainder;
-              }
+      if (remainder < 2)
+      {
+        max_pivots = B - remainder;
       }
-      else {
-            max_pivots = B + (4 - remainder);
+      else if (remainder == 2)
+      {
+        if (B > 32)
+        {
+          // round up to nearest 4 multiple
+          // for optimizing towards reads
+          max_pivots = B + remainder;
+        }
+        else
+        {
+          // round down to nearest 4 multiple
+          // for optimizing towards rights
+          max_pivots = B - remainder;
+        }
+      }
+      else
+      {
+        max_pivots = B + (4 - remainder);
       }
 
       return max_pivots;
     }
 
-    void set_epsilon(float e) {
+    void set_epsilon(float e)
+    {
       auto prev_max_pivots = max_pivots;
 
       epsilon = e;
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
-  
-      // flag node as ready for adoption if max_pivots increases after epsilon update  
-      if (max_pivots > prev_max_pivots) {
-	ready_for_adoption = true;
+
+      // flag node as ready for adoption if max_pivots increases after epsilon update
+      if (max_pivots > prev_max_pivots)
+      {
+        ready_for_adoption = true;
       }
     }
 
-    void decrement_node_level() {
-	node_level--;
+    // decrement node_level when adopted
+    void decrement_node_level()
+    {
+      node_level--;
     }
 
-    void add_read() {
+    void add_read()
+    {
       stat_tracker.add_read();
       operation_count += 1;
       // periodically update epsilon
-      if (operation_count == ops_before_epsilon_update) {
-          float new_epsilon = stat_tracker.get_epsilon();
-          set_epsilon(new_epsilon);
-          operation_count = 0;
+      if (operation_count == ops_before_epsilon_update)
+      {
+        float new_epsilon = stat_tracker.get_epsilon();
+        set_epsilon(new_epsilon);
+        operation_count = 0;
       }
     }
 
-    void add_write() {
+    void add_write()
+    {
       stat_tracker.add_write();
       operation_count += 1;
       // periodically update epsilon
-      if (operation_count == ops_before_epsilon_update) {
-          float new_epsilon = stat_tracker.get_epsilon();
-          set_epsilon(new_epsilon);
-          operation_count = 0;
+      if (operation_count == ops_before_epsilon_update)
+      {
+        float new_epsilon = stat_tracker.get_epsilon();
+        set_epsilon(new_epsilon);
+        operation_count = 0;
       }
     }
 
@@ -493,36 +493,39 @@ private:
       }
     }
 
-
     // Returns true or false for whether the given key
     // is in the range of this node's elements' keys
-    bool is_in_range(Key key) {
+    bool is_in_range(Key key)
+    {
 
-	auto first_elt = elements.begin();
+      auto first_elt = elements.begin();
 
-	if (first_elt == elements.end()) {
-	 return false;
-	}
+      if (first_elt == elements.end())
+      {
+        return false;
+      }
 
-	auto last_elt = elements.end();
-	--last_elt;
+      auto last_elt = elements.end();
+      --last_elt;
 
-	auto first_key = first_elt->first.key;
-	auto last_key = last_elt->first.key;
+      auto first_key = first_elt->first.key;
+      auto last_key = last_elt->first.key;
 
-	if (key >= first_key && key <= last_key) {
-		return true;
-	}
-	else {
-		return false;
-	}
+      if (key >= first_key && key <= last_key)
+      {
+        return true;
+      }
+      else
+      {
+        return false;
+      }
     }
 
     // Given a MessageKey and MessageValue, this method will apply the message kv-pair
-    // to one of this node's children. 
+    // to one of this node's children.
     //
     // This method assumes that the kv-pair is not within the range of children, but lies
-    // just outside of their buckets. 
+    // just outside of their buckets.
     //
     // If there is only one child, that the message will apply() to that.
     //
@@ -533,78 +536,91 @@ private:
     // of the last child, the message will be applied to the first or last child respectively.
     //
     // -------------------------------------------------------- //
-    void find_closest_smallest_apply(betree &bet, const MessageKey<Key> &mkey, const Message<Value> &elt) {
-	Key key = mkey.key;
+    void find_closest_smallest_apply(betree &bet, const MessageKey<Key> &mkey, const Message<Value> &elt)
+    {
+      Key key = mkey.key;
 
-	// go through children
-	for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it) {
+      // go through children
+      for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it)
+      {
 
-	       // next child
-	       auto nextIt = next(apply_it);
+        // next child
+        auto nextIt = next(apply_it);
 
-	       // if there's more than one child or on last pivot
-	       if (nextIt != pivots.end()) {
+        // if there's more than one child or on last pivot
+        if (nextIt != pivots.end())
+        {
 
-	           // last element of child
-		   auto last_elt = apply_it->second.child->elements.rbegin();
-		   auto last_key = last_elt->first.key; // get key
+          // last element of child
+          auto last_elt = apply_it->second.child->elements.rbegin();
+          auto last_key = last_elt->first.key; // get key
 
-		   // first element of next child
-		   auto first_elt_next = nextIt->second.child->elements.begin();
-		   auto first_key_next = first_elt_next->first.key; // get key
+          // first element of next child
+          auto first_elt_next = nextIt->second.child->elements.begin();
+          auto first_key_next = first_elt_next->first.key; // get key
 
-		   // if key to apply is between the child and next child
-		   if (key > last_key && key < first_key_next){
-			auto it_size = apply_it->second.child->pivots.size();
-			auto nextIt_size =  nextIt->second.child->pivots.size();
+          // if key to apply is between the child and next child
+          if (key > last_key && key < first_key_next)
+          {
+            auto it_size = apply_it->second.child->pivots.size();
+            auto nextIt_size = nextIt->second.child->pivots.size();
 
-			if (nextIt_size > it_size){
-			    nextIt->second.child->apply(mkey, elt, bet.default_value);
-			} else {
-			    apply_it->second.child->apply(mkey, elt, bet.default_value);
-			}
-			break;
-
-		   }
-	   	   else {
-			// first element of current child
-			auto first_elt = apply_it->second.child->elements.begin();
-			auto first_key = first_elt->first.key;
-			// if key to apply is less than existing key in child
-			if (key < first_key && apply_it == pivots.begin()) {
-			    apply_it->second.child->apply(mkey, elt, bet.default_value);
-			    break;
-			}
-		   }
-	       }
-	       else { // last  or only pivot
-	           apply_it->second.child->apply(mkey, elt, bet.default_value);
-	       	   break;
-	       }
+            if (nextIt_size > it_size)
+            {
+              nextIt->second.child->apply(mkey, elt, bet.default_value);
+            }
+            else
+            {
+              apply_it->second.child->apply(mkey, elt, bet.default_value);
+            }
+            break;
+          }
+          else
+          {
+            // first element of current child
+            auto first_elt = apply_it->second.child->elements.begin();
+            auto first_key = first_elt->first.key;
+            // if key to apply is less than existing key in child
+            if (key < first_key && apply_it == pivots.begin())
+            {
+              apply_it->second.child->apply(mkey, elt, bet.default_value);
+              break;
+            }
+          }
         }
+        else
+        { // last or only pivot
+          apply_it->second.child->apply(mkey, elt, bet.default_value);
+          break;
+        }
+      }
     }
 
-    // Forwards messages in this node to children to children
-    void forward_messages(betree &bet){
-	      // go through messages     
-              for (auto elt_it = elements.begin(); elt_it != elements.end(); ++elt_it) {
+    // Forwards messages in this node to children
+    void forward_messages(betree &bet)
+    {
+      // go through messages
+      for (auto elt_it = elements.begin(); elt_it != elements.end(); ++elt_it)
+      {
 
-                  bool found_range = false;
-                  for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it) {
-                        auto key = elt_it->first.key;
-                        if (apply_it->second.child->is_in_range(key)) {
-                                found_range = true;
-                                apply_it->second.child->apply(elt_it->first, elt_it->second, bet.default_value);
-                        }
-                  }
-                  if (!found_range) {
-                        // find 2 pivots near key is in between  and put it to the one with less messages
-                        find_closest_smallest_apply(bet, elt_it->first, elt_it->second);
-                  }
-              }
+        bool found_range = false;
+        // Find the child where key is in range so we can apply the message
+        for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it)
+        {
+          auto key = elt_it->first.key;
+          if (apply_it->second.child->is_in_range(key))
+          {
+            found_range = true;
+            apply_it->second.child->apply(elt_it->first, elt_it->second, bet.default_value);
+          }
+        }
+        if (!found_range)
+        {
+          // find 2 pivots near key is in between  and put it to the one with less messages
+          find_closest_smallest_apply(bet, elt_it->first, elt_it->second);
+        }
+      }
     }
-
-
 
     // Method to shorten parts of the tree.
     //
@@ -615,120 +631,135 @@ private:
     // their parent (child of this node) is killed.
     //
     // Currently, if grandchildren are adopted and their parents are killed, all of the elements
-    // in those parents (former children of this node) will be applied to this node - so, the message
-    // buffer in this node will temporarily be > max_messages potentially
+    // in those parents (former children of this node) will be forwarded and applied to the
+    // grandchildren being adopted. The adopted children may have > max_messges after this forwarding
+    // process (they will be naturally handled by a flush later).
     //
     // -----------------------------------------------------------------------------------------
-    void adopt(betree &bet) {
-	// Nothing to adopt if leaf
-	if (is_leaf()) {
-		ready_for_adoption = false;
-        	return;
-	}
-		
-	// No need to adopt if pivots at max
-	if (pivots.size() >= max_pivots) {
-		ready_for_adoption = false;
-		return;
-	}
+    void adopt(betree &bet)
+    {
+      // Nothing to adopt if leaf
+      if (is_leaf())
+      {
+        ready_for_adoption = false;
+        return;
+      }
 
-	uint64_t total_pivots = pivots.size();
+      // No need to adopt if pivots at max
+      if (pivots.size() >= max_pivots)
+      {
+        ready_for_adoption = false;
+        return;
+      }
 
-	// First get all the IDs of current children to potentially kill
-	std::vector<uint64_t> cur_child_ids;
-	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-		uint64_t cur_id = it->second.child->get_node_id();
-		cur_child_ids.push_back(cur_id);
-	}
-	uint64_t size_before_adopt = cur_child_ids.size();
+      uint64_t total_pivots = pivots.size();
 
-	// Iterate over children and count their pivots to assess if
-	// we can adopt grandchildren from them
-	for (uint64_t i = 0; i < size_before_adopt; i ++) {
+      // First get all the IDs of current children to potentially kill
+      std::vector<uint64_t> cur_child_ids;
+      for (auto it = pivots.begin(); it != pivots.end(); ++it)
+      {
+        uint64_t cur_id = it->second.child->get_node_id();
+        cur_child_ids.push_back(cur_id);
+      }
+      uint64_t size_before_adopt = cur_child_ids.size();
 
-	  // iterate till we find the child with node_id == cur_child_ids[0] or reach the end
-	  auto it = pivots.begin();
-	  while (true) {
-		auto cur_id = it->second.child->get_node_id();
-		if (cur_id == cur_child_ids[0]){
-			break;
-		}
-		it = next(it);
-		if (it == pivots.end()){ break; }
-	  }
+      // Iterate over children and count their pivots to assess if
+      // we can adopt grandchildren from them
+      for (uint64_t i = 0; i < size_before_adopt; i++)
+      {
 
-	  if (it != pivots.end()) {// if not at end
+        // iterate till we find the child with node_id == cur_child_ids[0] or reach the end
+        auto it = pivots.begin();
+        while (true)
+        {
+          auto cur_id = it->second.child->get_node_id();
+          if (cur_id == cur_child_ids[0])
+          {
+            break;
+          }
+          it = next(it);
+          if (it == pivots.end())
+          {
+            break;
+          }
+        }
 
-	    // see if we can adopt all sibling grandchildren
-	    if ( ((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots) {
-		  continue; // don't adopt the set of grandchildren
-	    }
+        if (it != pivots.end())
+        { // if not at end
 
-	    auto child_to_erase = it->second.child;// the child whose grandchildren we'll adopt
+          // see if we can adopt all sibling grandchildren
+          if (((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots)
+          {
+            continue; // don't adopt the set of grandchildren if it would result in > max_pivots
+          }
 
-	    // Skip is child is leaf, there's no grandchildren to adopt
-	    if (child_to_erase->is_leaf()) {
-		    continue;
-	    }
+          auto child_to_erase = it->second.child; // the child whose grandchildren we'll adopt
 
-	    pivot_map grandchildren = child_to_erase->pivots; // granchildren of this child
-	    
-	    // if there are grandchildren to adopt
-	    if (grandchildren.size() > 0) {
+          // Skip if child is leaf, there's no grandchildren to adopt
+          if (child_to_erase->is_leaf())
+          {
+            continue;
+          }
 
-	      // forward child's messages to children
-	      child_to_erase->forward_messages(bet);
+          pivot_map grandchildren = child_to_erase->pivots; // granchildren of the child
 
-	      // kill child
-	      pivots.erase(it);
-              child_to_erase->pivots.clear();
-              child_to_erase->elements.clear();
+          if (grandchildren.size() > 0)
+          {
 
-	      // decrement node_level of adoptees
-              for (auto adopt_it = grandchildren.begin(); adopt_it != grandchildren.end(); ++adopt_it) {
-                  adopt_it->second.child->decrement_node_level();
-              }
+            // forward child's messages to grandchildren
+            child_to_erase->forward_messages(bet);
 
-	      // adopt sibling grandchildren
-	      pivots.insert(grandchildren.begin(), grandchildren.end());
+            // kill child
+            pivots.erase(it);
+            child_to_erase->pivots.clear();
+            child_to_erase->elements.clear();
 
-	      // remove element at 0 index of cur_child_ids and push everything back
-	      // to assess the next child that isn't adopted
-	      cur_child_ids.erase(cur_child_ids.begin());
+            // decrement node_level of adoptees
+            for (auto adopt_it = grandchildren.begin(); adopt_it != grandchildren.end(); ++adopt_it)
+            {
+              adopt_it->second.child->decrement_node_level();
+            }
 
-	      // update pivot count
-	      total_pivots = pivots.size();
-	    }
-	  }
-    	}
+            // adopt sibling grandchildren
+            pivots.insert(grandchildren.begin(), grandchildren.end());
 
-	// After adoption, go through all children of this node and udpates child_size
-	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-		it->second.child_size =
-                	it->second.child->pivots.size() +
-                	it->second.child->elements.size();
-	}
+            // remove element at 0 index of cur_child_ids and push everything back
+            // to assess the next child that isn't adopted
+            cur_child_ids.erase(cur_child_ids.begin());
 
-	ready_for_adoption = false;
+            // update pivot count
+            total_pivots = pivots.size();
+          }
+        }
+      }
 
+      // After adoption, go through all children of this node and udpates child_size
+      for (auto it = pivots.begin(); it != pivots.end(); ++it)
+      {
+        it->second.child_size =
+            it->second.child->pivots.size() +
+            it->second.child->elements.size();
+      }
+
+      ready_for_adoption = false;
     }
     // --------------------------------------------------------------- //
-   
 
     // Adopt() recursively from the bottom to the top.
-    // Nodes only adopt if they recently got bigger max_pivots
-    void recursive_adopt(betree &bet) {
-	// For all kids, call adopt()
-	for (auto it = pivots.begin(); it != pivots.end(); ++it) {
-	    it->second.child->adopt(bet);
-	}
-	
-	// adopt after children have adopted
-	if (ready_for_adoption) {
-		adopt(bet);
-	}
-    }
+    void recursive_adopt(betree &bet)
+    {
+      // Recurse down to bottom of tree
+      for (auto it = pivots.begin(); it != pivots.end(); ++it)
+      {
+        it->second.child->recursive_adopt(bet);
+      }
 
+      // adopt after children have adopted (if flagged as ready)
+      if (ready_for_adoption)
+      {
+        adopt(bet);
+      }
+    }
 
     // Requires: there are less than MIN_FLUSH_SIZE things in elements
     //           destined for each child in pivots);
@@ -739,8 +770,9 @@ private:
       assert((pivots.size() >= max_pivots) || (elements.size() >= max_messages));
       // This size split does a good job of causing the resulting
       // nodes to have size between 0.4 * MAX_NODE_SIZE and 0.6 * MAX_NODE_SIZE.
-      int num_new_leaves = (pivots.size() + elements.size())  / (10 * max_node_size / 24);
-      if (num_new_leaves < 2) {
+      int num_new_leaves = (pivots.size() + elements.size()) / (10 * max_node_size / 24);
+      if (num_new_leaves < 2)
+      {
         num_new_leaves = 2;
       }
       // Make sure nothing here is left after adding to leaves
@@ -762,12 +794,12 @@ private:
         auto e = epsilon;
         auto l = node_level + 1;
 
-	node_pointer new_node = bet.ss->allocate(new node(e, l, bet.ops_before_update, bet.window_size));
+        node_pointer new_node = bet.ss->allocate(new node(e, l, bet.ops_before_update, bet.window_size));
 
-	auto new_node_id = bet.glob_id_inc++;	
-	new_node->set_node_id(new_node_id);
-	
-	// If there are still pivots to move...
+        auto new_node_id = bet.glob_id_inc++;
+        new_node->set_node_id(new_node_id);
+
+        // If there are still pivots to move...
         // result[pivot_idx->first] = child_info(new_node, 0 + 0)
         // Else if looping through elements...
         // result[elt_idx->first.key] = child_info(new_node, 0 + 0)
@@ -869,55 +901,61 @@ private:
       }
     }
 
-
     // recursive method to return the height of the tree
-    int tree_height_recursive(betree &bet, int currentLevel = 0) {
-        if (is_leaf()) {
-            return currentLevel;
-        }
+    int tree_height_recursive(betree &bet, int currentLevel = 0)
+    {
+      if (is_leaf())
+      {
+        return currentLevel;
+      }
 
-        std::vector<int> heights;
-        for (auto &pivot : pivots) {
-                int height = pivot.second.child->tree_height_recursive(bet, currentLevel + 1);
-		heights.push_back(height);
-        }
-	// Return max height
-        return *std::max_element(heights.begin(), heights.end());
+      std::vector<int> heights;
+      for (auto &pivot : pivots)
+      {
+        int height = pivot.second.child->tree_height_recursive(bet, currentLevel + 1);
+        heights.push_back(height);
+      }
+      // Return max height
+      return *std::max_element(heights.begin(), heights.end());
     }
- 
 
     // recursive method to count all the nodes in the tree
-    int node_count_recursive(betree &bet){
-	int count = 1; // current node
-	for (auto &pivot : pivots) {
-		count += pivot.second.child->node_count_recursive(bet);
-	}
-	return count;
+    int node_count_recursive(betree &bet)
+    {
+      int count = 1; // current node
+      for (auto &pivot : pivots)
+      {
+        count += pivot.second.child->node_count_recursive(bet);
+      }
+      return count;
     }
-   // recursive method to count all the pivots in the tree
-    int pivot_count_recursive(betree &bet){
-        int count = 0;
-        for (auto &pivot : pivots) {
-                count += pivot.second.child->pivot_count_recursive(bet);
-        }
-        return count;
+    // recursive method to count all the pivots in the tree
+    int pivot_count_recursive(betree &bet)
+    {
+      int count = 0;
+      for (auto &pivot : pivots)
+      {
+        count += pivot.second.child->pivot_count_recursive(bet);
+      }
+      return count;
     }
     // Print the amount of messages in each node
-    void message_count_recursive(betree &bet){
-	if (is_leaf()){
-		std::cout << "leaf messages: " << std::to_string(elements.size()) << std::endl;
-		return;
-	}
-	else {
-		std::cout << "messages: " << std::to_string(elements.size()) << std::endl;
-		for (auto &pivot : pivots) {
-			pivot.second.child->message_count_recursive(bet);
-		}
-	}
+    void message_count_recursive(betree &bet)
+    {
+      if (is_leaf())
+      {
+        std::cout << "leaf messages: " << std::to_string(elements.size()) << std::endl;
+        return;
+      }
+      else
+      {
+        std::cout << "messages: " << std::to_string(elements.size()) << std::endl;
+        for (auto &pivot : pivots)
+        {
+          pivot.second.child->message_count_recursive(bet);
+        }
+      }
     }
-
-
-
 
     // Receive a collection of new messages and perform recursive
     // flushes or splits as necessary.  If we split, return a
@@ -927,10 +965,13 @@ private:
     {
       // If this node is less than the tunable epsilon tree level
       // Checks for an epsilon update.
-      if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level) {
+      if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level)
+      {
         add_write();
-      } else if (epsilon != parent_epsilon) {
-        epsilon = parent_epsilon; 
+      }
+      else if (epsilon != parent_epsilon)
+      {
+        epsilon = parent_epsilon;
         // Recalculate pivots and message buffer sizes
         max_pivots = calculate_max_pivots();
       }
@@ -1071,12 +1112,13 @@ private:
       return result;
     }
 
-    Value query(const betree &bet, const Key k)
+    Value query(betree &bet, const Key k)
     {
       debug(std::cout << "Querying " << this << std::endl);
       // If this node is less than the tunable epsilon tree level
       // Checks for an epsilon update.
-      if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level) {
+      if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level)
+      {
         add_read();
       }
       if (is_leaf())
@@ -1141,6 +1183,19 @@ private:
         assert(message_iter->second.opcode == UPDATE);
         v = v + message_iter->second.val;
         message_iter++;
+      }
+
+      // if node is flagged as ready to adopt
+      if (ready_for_adoption)
+      {
+        if (node_level < bet.tunable_epsilon_level)
+        {
+          adopt(bet);
+        }
+        else if (node_level == bet.tunable_epsilon_level)
+        {
+          recursive_adopt(bet);
+        }
       }
 
       return v;
@@ -1242,12 +1297,12 @@ private:
   uint64_t const ops_before_update;
   uint64_t const window_size;
   uint64_t glob_id_inc = 0;
-  
+
 public:
   betree(swap_space *sspace,
          uint64_t maxnodesize = 64,
          uint64_t minnodesize = 64 / 4,
-         uint64_t minflushsize = 64/ 16, 
+         uint64_t minflushsize = 64 / 16,
          bool isdynamic = false,
          float startingepsilon = 0, 
          uint64_t tunableepsilonlevel = 0,
@@ -1269,19 +1324,23 @@ public:
     root->set_node_id(new_node_id);
   }
 
-  // Wrapper methods to call recursive methods to 
+  // Wrapper methods to call recursive methods to
   // get Tree stats
-  int get_tree_height() {
-      return root->tree_height_recursive(*this, 0);
+  int get_tree_height()
+  {
+    return root->tree_height_recursive(*this, 0);
   }
-  int get_node_count() {
-	return root->node_count_recursive(*this);
+  int get_node_count()
+  {
+    return root->node_count_recursive(*this);
   }
-  int get_pivot_count() {
-	return root->pivot_count_recursive(*this);
+  int get_pivot_count()
+  {
+    return root->pivot_count_recursive(*this);
   }
-  void print_message_count_in_nodes(){
- 	root->message_count_recursive(*this);
+  void print_message_count_in_nodes()
+  {
+    root->message_count_recursive(*this);
   }
 
   // Insert the specified message and handle a split of the root if it
@@ -1295,7 +1354,7 @@ public:
     if (new_nodes.size() > 0)
     {
       e = root->epsilon;
-      
+
       // The root's level should always be 0
       root = ss->allocate(new node(e, 0, ops_before_update, window_size));
       root->pivots = new_nodes;
@@ -1324,12 +1383,6 @@ public:
   Value query(Key k)
   {
     Value v = root->query(*this, k);
-
-
-    if (root->ready_for_adoption) {
-      //root->recursive_adopt(*this);
-      root->adopt(*this);
-    }
 
     return v;
   }
