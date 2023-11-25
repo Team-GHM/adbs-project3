@@ -260,6 +260,7 @@ private:
     uint64_t const window_size;
     uint64_t node_id;
     bool ready_for_adoption = false;
+    bool needs_epsilon_flush_for_query = false;
 
     node()
         : max_node_size(64), min_node_size(64 / 4), min_flush_size(64 / 16), epsilon(0.4), node_level(0), operation_count(0), ops_before_epsilon_update(100), window_size(100), node_id(-1)
@@ -352,7 +353,13 @@ private:
       // periodically update epsilon
       if (operation_count == ops_before_epsilon_update)
       {
+        float old_epsilon = epsilon;
         float new_epsilon = stat_tracker.get_epsilon();
+        if (old_epsilon != new_epsilon)
+        {
+          // Flag as ready to flush epsilon after the query optimization has finished.
+          needs_epsilon_flush_for_query = true;
+        }
         set_epsilon(new_epsilon);
         operation_count = 0;
       }
@@ -1112,7 +1119,7 @@ private:
       return result;
     }
 
-    Value query(betree &bet, const Key k)
+    Value query(betree &bet, const Key k, const bool epsilon_update = false, const float parent_epsilon = 0.4)
     {
       debug(std::cout << "Querying " << this << std::endl);
       // If this node is less than the tunable epsilon tree level
@@ -1127,7 +1134,11 @@ private:
         if (it != elements.end() && it->first.key == k)
         {
           assert(it->second.opcode == INSERT);
-          return it->second.val;
+          auto v = it->second.val;
+          if (epsilon_update) {
+            epsilon = parent_epsilon;
+          }
+          return v;
         }
         else
         {
@@ -1141,9 +1152,21 @@ private:
       Value v = bet.default_value;
 
       if (message_iter == elements.end() || k < message_iter->first)
+      {
         // If we don't have any messages for this key, just search
         // further down the tree.
-        v = get_pivot(k)->second.child->query(bet, k);
+        if ((needs_epsilon_flush_for_query && node_level == bet.tunable_epsilon_level) || (node_level > bet.tunable_epsilon_level && epsilon_update))
+        {
+          // If epsilon changed as a result of this query operation, flush the new epsilon value down to our children as necessary.
+          float e = node_level == bet.tunable_epsilon_level ? epsilon : parent_epsilon;
+          v = get_pivot(k)->second.child->query(bet, k, true, e);
+          needs_epsilon_flush_for_query = false;
+        }
+        else
+        {
+          v = get_pivot(k)->second.child->query(bet, k);
+        }
+      }
       else if (message_iter->second.opcode == UPDATE)
       {
         // We have some updates for this key.  Search down the tree.
@@ -1152,8 +1175,17 @@ private:
         // default initial value.
         try
         {
-          Value t = get_pivot(k)->second.child->query(bet, k);
-          v = t;
+          if ((needs_epsilon_flush_for_query && node_level == bet.tunable_epsilon_level) || (node_level > bet.tunable_epsilon_level && epsilon_update))
+          {
+            float e = node_level == bet.tunable_epsilon_level ? epsilon : parent_epsilon;
+            Value t = get_pivot(k)->second.child->query(bet, k, true, e);
+            v = t;
+          }
+          else
+          {
+            Value t = get_pivot(k)->second.child->query(bet, k);
+            v = t;
+          }
         }
         catch (std::out_of_range &e)
         {
@@ -1383,7 +1415,6 @@ public:
   Value query(Key k)
   {
     Value v = root->query(*this, k);
-
     return v;
   }
 
