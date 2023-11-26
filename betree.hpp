@@ -1296,6 +1296,8 @@ private:
       serialize(fs, context, node_id);
       fs << "\nready_for_adoption: ";
       serialize(fs, context, ready_for_adoption);
+      fs << "\nneeds_epsilon_flush_for_query: ";
+      serialize(fs, context, needs_epsilon_flush_for_query);
     }
 
     void _deserialize(std::iostream &fs, serialization_context &context)
@@ -1313,6 +1315,8 @@ private:
       deserialize(fs, context, node_id);
       fs >> dummy;
       deserialize(fs, context, ready_for_adoption);
+      fs >> dummy;
+      serialize(fs, context, needs_epsilon_flush_for_query);
     }
   };
 
