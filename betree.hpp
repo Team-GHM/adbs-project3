@@ -335,10 +335,11 @@ private:
       // flag node as ready for adoption if max_pivots increases after epsilon update
       if (max_pivots > prev_max_pivots)
       {
-	if (node_level > bet.tunable_epsilon_level){
+	if (node_level == bet.tunable_epsilon_level){
+	  
 	  flag_as_ready_for_adoption_recursive(bet);
 	}
-	else {
+	else if (node_level < bet.tunable_epsilon_level) {
           ready_for_adoption = true;
         }
       }
@@ -567,15 +568,18 @@ private:
           // if key to apply is between the child and next child
           if (key > last_key && key < first_key_next)
           {
-            auto it_size = apply_it->second.child->pivots.size();
-            auto nextIt_size = nextIt->second.child->pivots.size();
+		   std::cout << "applying message to first or next bucket  ... " << std::endl;
+            auto it_size = apply_it->second.child->elements.size();
+            auto nextIt_size = nextIt->second.child->elements.size();
 
-            if (nextIt_size > it_size)
+            if (nextIt_size < it_size)
             {
+		     std::cout << "applying message to nextIt... " << std::endl;
               nextIt->second.child->apply(mkey, elt, bet.default_value);
             }
             else
             {
+		 std::cout << "applying message to cur it ... " << std::endl;		    
               apply_it->second.child->apply(mkey, elt, bet.default_value);
             }
             break;
@@ -588,6 +592,7 @@ private:
             // if key to apply is less than existing key in child
             if (key < first_key && apply_it == pivots.begin())
             {
+		     std::cout << "applying key to first cuz less than... " << std::endl;
               apply_it->second.child->apply(mkey, elt, bet.default_value);
               break;
             }
@@ -595,6 +600,7 @@ private:
         }
         else
         { // last or only pivot
+		 std::cout << "applying message to lat or only pivot ... " << std::endl;
           apply_it->second.child->apply(mkey, elt, bet.default_value);
           break;
         }
@@ -616,11 +622,13 @@ private:
           if (apply_it->second.child->is_in_range(key))
           {
             found_range = true;
+	     std::cout << "found range calling apply() ... " << std::endl;
             apply_it->second.child->apply(elt_it->first, elt_it->second, bet.default_value);
           }
         }
         if (!found_range)
         {
+		std::cout << "calliing find_clostest_smallest_apply() ... " << std::endl;
           // find 2 pivots near key is in between  and put it to the one with less messages
           find_closest_smallest_apply(bet, elt_it->first, elt_it->second);
         }
@@ -643,6 +651,7 @@ private:
     // -----------------------------------------------------------------------------------------
     void adopt(betree &bet)
     {
+
       // Nothing to adopt if leaf
       if (is_leaf())
       {
@@ -672,7 +681,6 @@ private:
       // we can adopt grandchildren from them
       for (uint64_t i = 0; i < size_before_adopt; i++)
       {
-
         // iterate till we find the child with node_id == cur_child_ids[0] or reach the end
         auto it = pivots.begin();
         while (true)
@@ -711,24 +719,28 @@ private:
           if (grandchildren.size() > 0)
           {
 
+		  std::cout << "there is grandchidlrne to erase... " << std::endl;
             // forward child's messages to grandchildren
             child_to_erase->forward_messages(bet);
 
+	    std::cout << "forwarded messages... " << std::endl;
             // kill child
             pivots.erase(it);
             child_to_erase->pivots.clear();
             child_to_erase->elements.clear();
 
+	    std::cout << "killed child... " << std::endl;
             // decrement node_level of adoptees
             for (auto adopt_it = grandchildren.begin(); adopt_it != grandchildren.end(); ++adopt_it)
             {
               adopt_it->second.child->decrement_node_level();
             }
 
+	    std::cout << "decremented node_levle... " << std::endl;
             // adopt sibling grandchildren
             pivots.insert(grandchildren.begin(), grandchildren.end());
 
-	    std::cout << "adopted 1 or more children ... " << std::endl;
+	    std::cout << "adopted " << std::to_string(grandchildren.size()) << " grandchildren ... " << std::endl;
             // remove element at 0 index of cur_child_ids and push everything back
             // to assess the next child that isn't adopted
             cur_child_ids.erase(cur_child_ids.begin());
@@ -919,7 +931,8 @@ private:
       {
         it->second.child->flag_as_ready_for_adoption_recursive(bet);
       }
-
+	
+      //std::cout << "flagging as ready_for_adoption recursively ... " << std::endl;
       ready_for_adoption = true;
     }
 
@@ -1411,9 +1424,10 @@ public:
   {
     Value v = root->query(*this, k);
 
-
-    if (root->ready_for_adoption){
+    if (is_dynamic){
+      if (root->ready_for_adoption){
 	root->recursive_adopt(*this);
+      }
     }
     return v;
   }
