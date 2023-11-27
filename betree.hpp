@@ -973,7 +973,10 @@ private:
       {
         epsilon = parent_epsilon;
         // Recalculate pivots and message buffer sizes
-        max_pivots = calculate_max_pivots();
+        uint64_t new_max_pivots = calculate_max_pivots();
+	max_pivots = new_max_pivots;
+	uint64_t new_max_messages = max_node_size - max_pivots;
+        max_messages = new_max_messages;
       }
 
       // REMEMBER
@@ -1186,7 +1189,7 @@ private:
       }
 
       // if node is flagged as ready to adopt
-      if (ready_for_adoption)
+      /*if (ready_for_adoption)
       {
         if (node_level < bet.tunable_epsilon_level)
         {
@@ -1196,7 +1199,7 @@ private:
         {
           recursive_adopt(bet);
         }
-      }
+      }*/
 
       return v;
     }
@@ -1384,6 +1387,10 @@ public:
   {
     Value v = root->query(*this, k);
 
+
+    if (root->ready_for_adoption){
+	root->recursive_adopt(*this);
+    }
     return v;
   }
 
