@@ -550,55 +550,25 @@ private:
       // go through children
       for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it)
       {
-	std::cout << "iteratingn through child" << std::endl;
-        	
 	// next child
         auto nextIt = next(apply_it);
 
-	 std::cout << "set next it" << std::endl;
         // if there's more than one child or on last pivot
         if (nextIt != pivots.end())
         {
-		std::cout << "attempting to get last element of child" << std::endl;
-
           // last element of child
           auto last_elt = apply_it->second.child->elements.rbegin();
-	  std::cout << "attempting to get last-key" << std::endl;
 	  auto last_key = last_elt->first.key; // get key
 
-	  std::cout << "got last elt of child" << std::endl;
-	   std::cout << "attempting to get first element of next child" << std::endl;
           // first element of next child
           auto first_elt_next = nextIt->second.child->elements.begin();
           auto first_key_next = first_elt_next->first.key; // get key
 
-	  std::cout << "got first elt of next  child" << std::endl;
-
           // if key to apply is between the child and next child
           if (key > last_key && key < first_key_next)
           {
-	     //std::cout << "applying message to first or next bucket  ... " << std::endl;
-		  std::cout << "applying message to first bucket when falls inbetweeen.. " << std::endl;
-
 	    apply_it->second.child->apply(mkey, elt, bet.default_value);
             applied = true;   
-		   
-		//auto it_size = apply_it->second.child->elements.size();
-            //auto nextIt_size = nextIt->second.child->elements.size();
-
-            /*if (nextIt_size < it_size)
-            {
-		     std::cout << "applying message to nextIt... " << std::endl;
-              nextIt->second.child->apply(mkey, elt, bet.default_value);
-              applied = true;
-	    }
-            else
-            {
-		 std::cout << "applying message to cur it ... " << std::endl;		    
-              apply_it->second.child->apply(mkey, elt, bet.default_value);
-              applied = true;
-	    }*/
-            //break;
 	    return;
           }
           else
@@ -609,25 +579,17 @@ private:
             // if key to apply is less than existing key in child
             if (key < first_key && apply_it == pivots.begin())
             {
-		     std::cout << "applying key to first cuz less than... " << std::endl;
               apply_it->second.child->apply(mkey, elt, bet.default_value);
               applied = true;
-	      //break;
 	      return;
             }
           }
         }
         else
         { // last or only pivot
-		 std::cout << "applying message to lat or only pivot ... " << std::endl;
           apply_it->second.child->apply(mkey, elt, bet.default_value);
-          applied = true;
-	  //break;
 	  return;
         }
-      }
-      if (!applied) {
-        std::cout << "DID NOT APPLY TO A CHILD" << std::endl;
       }
     }
 
@@ -646,13 +608,11 @@ private:
           if (apply_it->second.child->is_in_range(key))
           {
             found_range = true;
-	     std::cout << "found range calling apply() ... " << std::endl;
             apply_it->second.child->apply(elt_it->first, elt_it->second, bet.default_value);
           }
         }
         if (!found_range)
         {
-		std::cout << "calliing find_clostest_smallest_apply() ... " << std::endl;
           // find 2 pivots near key is in between  and put it to the one with less messages
           find_closest_smallest_apply(bet, elt_it->first, elt_it->second);
         }
@@ -743,36 +703,26 @@ private:
           if (grandchildren.size() > 0)
           {
 
-		  std::cout << "there is grandchidlrne to erase... " << std::endl;
-            // forward child's messages to grandchildren
-            //child_to_erase->forward_messages(bet);
-
     	    // apply all messages to this node
 	    message_map child_messages = child_to_erase->elements;
 	    for (auto eltit = child_messages.begin(); eltit != child_messages.end(); ++eltit) {
 		apply(eltit->first, eltit->second, bet.default_value);
 	    }
 
-
-
-	    std::cout << "forwarded messages... " << std::endl;
             // kill child
             pivots.erase(it);
             child_to_erase->pivots.clear();
             child_to_erase->elements.clear();
 
-	    std::cout << "killed child... " << std::endl;
             // decrement node_level of adoptees
             for (auto adopt_it = grandchildren.begin(); adopt_it != grandchildren.end(); ++adopt_it)
             {
               adopt_it->second.child->decrement_node_level();
             }
 
-	    std::cout << "decremented node_levle... " << std::endl;
             // adopt sibling grandchildren
             pivots.insert(grandchildren.begin(), grandchildren.end());
 
-	    std::cout << "adopted " << std::to_string(grandchildren.size()) << " grandchildren ... " << std::endl;
             // remove element at 0 index of cur_child_ids and push everything back
             // to assess the next child that isn't adopted
             cur_child_ids.erase(cur_child_ids.begin());
@@ -809,10 +759,6 @@ private:
       {
         adopt(bet);
       }
-      /*else if (node_level > bet.tunable_epsilon_level)
-      {
-	 adopt(bet);
-      }*/
     }
 
     // Requires: there are less than MIN_FLUSH_SIZE things in elements
@@ -964,7 +910,6 @@ private:
         it->second.child->flag_as_ready_for_adoption_recursive(bet);
       }
 	
-      //std::cout << "flagging as ready_for_adoption recursively ... " << std::endl;
       ready_for_adoption = true;
     }
 
@@ -1256,19 +1201,6 @@ private:
         v = v + message_iter->second.val;
         message_iter++;
       }
-
-      // if node is flagged as ready to adopt
-      /*if (ready_for_adoption)
-      {
-        if (node_level < bet.tunable_epsilon_level)
-        {
-          adopt(bet);
-        }
-        else if (node_level == bet.tunable_epsilon_level)
-        {
-          recursive_adopt(bet);
-        }
-      }*/
 
       return v;
     }
