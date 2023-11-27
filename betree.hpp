@@ -1388,11 +1388,11 @@ public:
   {
     Value v = root->query(*this, k);
 
-    if (is_dynamic){
-      if (root->ready_for_adoption){
-	root->recursive_adopt(*this);
-      }
+    // Shorten tree if ready
+    if (is_dynamic && root->ready_for_adoption){
+      root->recursive_adopt(*this);
     }
+
     return v;
   }
 
