@@ -339,6 +339,13 @@ private:
       }
     }
 
+    void set_epsilon_straight(float e )
+    {
+      epsilon = e;
+      max_pivots = calculate_max_pivots();
+      max_messages = max_node_size - max_pivots;
+    }
+
     // decrement node_level when adopted
     void decrement_node_level()
     {
@@ -636,13 +643,18 @@ private:
     // process (they will be naturally handled by a flush later).
     //
     // -----------------------------------------------------------------------------------------
-    void adopt(betree &bet)
+    void adopt(betree &bet, float eps, bool flush)
     {
       // Nothing to adopt if leaf
       if (is_leaf())
       {
         ready_for_adoption = false;
         return;
+      }
+
+      // update epsilon, max_pivots, and max_messages for nodes at or below node_level before adopt
+      if (flush){
+	set_epsilon_straight(eps);
       }
 
       // No need to adopt if pivots at max
@@ -689,7 +701,7 @@ private:
 
           // see if we can adopt all sibling grandchildren
           if (((total_pivots - 1) + it->second.child->pivots.size()) > max_pivots)
-          {
+	  {
             continue; // don't adopt the set of grandchildren if it would result in > max_pivots
           }
 
@@ -746,18 +758,18 @@ private:
     // --------------------------------------------------------------- //
 
     // Adopt() recursively from the bottom to the top.
-    void recursive_adopt(betree &bet)
+    void recursive_adopt(betree &bet, float eps)
     {
       // Recurse down to bottom of tree
       for (auto it = pivots.begin(); it != pivots.end(); ++it)
       {
-        it->second.child->recursive_adopt(bet);
+        it->second.child->recursive_adopt(bet, eps);
       }
 
       // adopt after children have adopted (if flagged as ready)
       if (ready_for_adoption)
       {
-        adopt(bet);
+        adopt(bet, eps, true);
       }
     }
 
@@ -1190,11 +1202,11 @@ private:
       {
         if (node_level < bet.tunable_epsilon_level)
         {
-          adopt(bet);
+          adopt(bet, epsilon, false);
         }
         else if (node_level == bet.tunable_epsilon_level)
         {
-          recursive_adopt(bet);
+          recursive_adopt(bet, epsilon);
         }
       }
 
