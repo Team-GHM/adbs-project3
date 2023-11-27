@@ -37,7 +37,7 @@ def save_keys_to_file(keys, filename):
 
 if __name__ == "__main__":
     number_of_distinct_keys = 2 ** 10  # Set to the desired number of distinct keys
-    nops = 2 ** 12  # Set to the desired number of operations
+    nops = 2 ** 14  # Set to the desired number of operations
     skewness = 2.0  # Adjust the skewness parameter as needed
 
     generate_keys_and_plot(number_of_distinct_keys, nops, skewness)

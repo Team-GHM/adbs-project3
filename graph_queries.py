@@ -24,29 +24,17 @@ nops_write_new, ops_times_write_new = load_data('write_ops_times_new.txt')
 nops_write_old, ops_times_write_old = load_data('write_ops_times_old.txt')
 
 # Create subplots for reads
-plt.figure(figsize=(14, 8))
+plt.figure(figsize=(10, 6))
 
-# Reads subplots
-plt.subplot(2, 1, 1) 
-
-plt.plot(nops_read_new, ops_times_read_new, label='New', color='blue')
-plt.plot(nops_read_old, ops_times_read_old, label='Old', color='red')
-
-plt.legend()
-plt.xlabel('nops')
-plt.ylabel('Average time (μs)') 
-plt.title('Time for Reads')
-
-# Writes subplots 
-plt.subplot(2, 1, 2)
-
-plt.plot(nops_write_new, ops_times_write_new, label='New', color='blue') 
-plt.plot(nops_write_old, ops_times_write_old, label='Old', color='red')
+plt.plot(nops_read_new, ops_times_read_new, color='red', label='Tunable Reads')
+plt.plot(nops_read_old, ops_times_read_old, color='blue', label='NonTunable Reads') 
+plt.plot(nops_write_new, ops_times_write_new, color='green', label='Tunable Writes')
+plt.plot(nops_write_old, ops_times_write_old, color='orange', label='NonTunable Writes') 
 
 plt.legend()
-plt.xlabel('nops')
+plt.xlabel('nops') 
 plt.ylabel('Average time (μs)')
-plt.title('Time for Writes')
+plt.title('Operation Time')
 
 plt.tight_layout()
 plt.savefig('/home/u1418793/adbs-project3/operations_plots.png') 

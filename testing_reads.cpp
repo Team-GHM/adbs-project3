@@ -78,6 +78,7 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
             std::string value = std::to_string(t) + ":";
             timer_start(timers2);
             b.update(t, value);
+            timer_stop(timers2);
             double update_timers = timers2;
             ops_times.push_back(update_timers);
             nops_update--;
@@ -120,7 +121,7 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
 #define DEFAULT_TEST_MIN_FLUSH_SIZE (DEFAULT_TEST_MAX_NODE_SIZE / 4)
 #define DEFAULT_TEST_CACHE_SIZE (4)
 #define DEFAULT_TEST_NDISTINCT_KEYS (1ULL << 10)
-#define DEFAULT_TEST_NOPS (1ULL << 12)
+#define DEFAULT_TEST_NOPS (1ULL << 14)
 
 int main(int argc, char **argv)
 {
