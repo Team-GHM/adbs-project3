@@ -366,12 +366,7 @@ private:
       if (operation_count == ops_before_epsilon_update)
       {
         float old_epsilon = epsilon;
-	float new_epsilon = stat_tracker.get_epsilon();
-        /*if (old_epsilon != new_epsilon)
-        {
-          // Flag as ready to flush epsilon after the query optimization has finished.
-          needs_epsilon_flush_for_query = true;
-        }*/
+	float new_epsilon = stat_tracker.get_epsilon();	
 	if (old_epsilon != new_epsilon) {
           set_epsilon(new_epsilon, tunable_level);
         }
@@ -997,10 +992,6 @@ private:
       {
 	// Recalculate pivots and message buffer sizes
 	set_epsilon(parent_epsilon, bet.tunable_epsilon_level);
-	//epsilon = parent_epsilon;
-        // Recalculate pivots and message buffer sizes
-        //max_pivots = calculate_max_pivots();
-        //max_messages = max_node_size - max_pivots;
       }
 
       // REMEMBER
@@ -1156,7 +1147,6 @@ private:
           assert(it->second.opcode == INSERT);
           auto v = it->second.val;
           if (epsilon_update) {
-            //epsilon = parent_epsilon;
             set_epsilon(parent_epsilon, bet.tunable_epsilon_level);
 	  }
           return v;
