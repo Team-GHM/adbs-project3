@@ -325,7 +325,7 @@ private:
       return max_pivots;
     }
 
-    void set_epsilon(float e)
+    void set_epsilon(float e, uint64_t tunable_level)
     {
       auto prev_max_pivots = max_pivots;
 
@@ -333,10 +333,22 @@ private:
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
 
-      // flag node as ready for adoption if max_pivots increases after epsilon update
-      if (max_pivots > prev_max_pivots)
-      {
-        ready_for_adoption = true;
+      if (node_level < tunable_level){
+        // flag node as ready for adoption if max_pivots increases after epsilon update
+        if (max_pivots > prev_max_pivots)
+        {
+          ready_for_adoption = true;
+        }
+      }
+      else if (node_level == tunable_level){
+	if (max_pivots > prev_max_pivots)
+        { 
+          ready_for_adoption = true;
+          needs_epsilon_flush_for_query = true;
+        }
+        else if (max_pivots != prev_max_pivots){
+          needs_epsilon_flush_for_query = true;
+        }
       }
     }
 
@@ -346,7 +358,7 @@ private:
       node_level--;
     }
 
-    void add_read()
+    void add_read(uint64_t tunable_level)
     {
       stat_tracker.add_read();
       operation_count += 1;
@@ -354,26 +366,31 @@ private:
       if (operation_count == ops_before_epsilon_update)
       {
         float old_epsilon = epsilon;
-        float new_epsilon = stat_tracker.get_epsilon();
-        if (old_epsilon != new_epsilon)
+	float new_epsilon = stat_tracker.get_epsilon();
+        /*if (old_epsilon != new_epsilon)
         {
           // Flag as ready to flush epsilon after the query optimization has finished.
           needs_epsilon_flush_for_query = true;
+        }*/
+	if (old_epsilon != new_epsilon) {
+          set_epsilon(new_epsilon, tunable_level);
         }
-        set_epsilon(new_epsilon);
         operation_count = 0;
       }
     }
 
-    void add_write()
+    void add_write(uint64_t tunable_level)
     {
       stat_tracker.add_write();
       operation_count += 1;
       // periodically update epsilon
       if (operation_count == ops_before_epsilon_update)
       {
+	float old_epsilon = epsilon;
         float new_epsilon = stat_tracker.get_epsilon();
-        set_epsilon(new_epsilon);
+        if (old_epsilon != new_epsilon) {
+	  set_epsilon(new_epsilon, tunable_level);
+	}
         operation_count = 0;
       }
     }
@@ -974,13 +991,16 @@ private:
       // Checks for an epsilon update.
       if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level)
       {
-        add_write();
+        add_write(bet.tunable_epsilon_level);
       }
       else if (epsilon != parent_epsilon)
       {
-        epsilon = parent_epsilon;
+	// Recalculate pivots and message buffer sizes
+	set_epsilon(parent_epsilon, bet.tunable_epsilon_level);
+	//epsilon = parent_epsilon;
         // Recalculate pivots and message buffer sizes
-        max_pivots = calculate_max_pivots();
+        //max_pivots = calculate_max_pivots();
+        //max_messages = max_node_size - max_pivots;
       }
 
       // REMEMBER
@@ -1126,7 +1146,7 @@ private:
       // Checks for an epsilon update.
       if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level)
       {
-        add_read();
+        add_read(bet.tunable_epsilon_level);
       }
       if (is_leaf())
       {
@@ -1136,14 +1156,18 @@ private:
           assert(it->second.opcode == INSERT);
           auto v = it->second.val;
           if (epsilon_update) {
-            epsilon = parent_epsilon;
-          }
+            //epsilon = parent_epsilon;
+            set_epsilon(parent_epsilon, bet.tunable_epsilon_level);
+	  }
           return v;
         }
         else
         {
           throw std::out_of_range("Key does not exist");
         }
+      }
+      else if (node_level > bet.tunable_epsilon_level && epsilon_update) {
+	      set_epsilon(parent_epsilon, bet.tunable_epsilon_level);
       }
 
       ///////////// Non-leaf
@@ -1161,6 +1185,7 @@ private:
           float e = node_level == bet.tunable_epsilon_level ? epsilon : parent_epsilon;
           v = get_pivot(k)->second.child->query(bet, k, true, e);
           needs_epsilon_flush_for_query = false;
+	  std::cout << "flushed epsilon on query()... " << std::endl;
         }
         else
         {
@@ -1178,8 +1203,10 @@ private:
           if ((needs_epsilon_flush_for_query && node_level == bet.tunable_epsilon_level) || (node_level > bet.tunable_epsilon_level && epsilon_update))
           {
             float e = node_level == bet.tunable_epsilon_level ? epsilon : parent_epsilon;
-            Value t = get_pivot(k)->second.child->query(bet, k, true, e);
+	    Value t = get_pivot(k)->second.child->query(bet, k, true, e);
             v = t;
+	    needs_epsilon_flush_for_query = false;
+	    std::cout << "flushed epsilon on query()... " << std::endl;
           }
           else
           {
