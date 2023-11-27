@@ -324,7 +324,7 @@ private:
       return max_pivots;
     }
 
-    void set_epsilon(float e)
+    void set_epsilon(float e, betree &bet)
     {
       auto prev_max_pivots = max_pivots;
 
@@ -335,7 +335,12 @@ private:
       // flag node as ready for adoption if max_pivots increases after epsilon update
       if (max_pivots > prev_max_pivots)
       {
-        ready_for_adoption = true;
+	if (node_level > bet.tunable_epsilon_level){
+	  flag_as_ready_for_adoption_recursive(bet);
+	}
+	else {
+          ready_for_adoption = true;
+        }
       }
     }
 
@@ -345,7 +350,7 @@ private:
       node_level--;
     }
 
-    void add_read()
+    void add_read(betree &bet)
     {
       stat_tracker.add_read();
       operation_count += 1;
@@ -353,12 +358,12 @@ private:
       if (operation_count == ops_before_epsilon_update)
       {
         float new_epsilon = stat_tracker.get_epsilon();
-        set_epsilon(new_epsilon);
+        set_epsilon(new_epsilon, bet);
         operation_count = 0;
       }
     }
 
-    void add_write()
+    void add_write(betree &bet)
     {
       stat_tracker.add_write();
       operation_count += 1;
@@ -366,7 +371,7 @@ private:
       if (operation_count == ops_before_epsilon_update)
       {
         float new_epsilon = stat_tracker.get_epsilon();
-        set_epsilon(new_epsilon);
+        set_epsilon(new_epsilon, bet);
         operation_count = 0;
       }
     }
@@ -723,6 +728,7 @@ private:
             // adopt sibling grandchildren
             pivots.insert(grandchildren.begin(), grandchildren.end());
 
+	    std::cout << "adopted 1 or more children ... " << std::endl;
             // remove element at 0 index of cur_child_ids and push everything back
             // to assess the next child that isn't adopted
             cur_child_ids.erase(cur_child_ids.begin());
@@ -759,6 +765,10 @@ private:
       {
         adopt(bet);
       }
+      /*else if (node_level > bet.tunable_epsilon_level)
+      {
+	 adopt(bet);
+      }*/
     }
 
     // Requires: there are less than MIN_FLUSH_SIZE things in elements
@@ -901,6 +911,20 @@ private:
       }
     }
 
+    // Recursive method that flags this node and all children, grandchildren, etc as
+    // ready_for_adoption
+    void flag_as_ready_for_adoption_recursive(betree &bet){
+      // Recurse down to bottom of tree
+      for (auto it = pivots.begin(); it != pivots.end(); ++it)
+      {
+        it->second.child->flag_as_ready_for_adoption_recursive(bet);
+      }
+
+      ready_for_adoption = true;
+    }
+
+
+
     // recursive method to return the height of the tree
     int tree_height_recursive(betree &bet, int currentLevel = 0)
     {
@@ -967,7 +991,7 @@ private:
       // Checks for an epsilon update.
       if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level)
       {
-        add_write();
+        add_write(bet);
       }
       else if (epsilon != parent_epsilon)
       {
@@ -1122,7 +1146,7 @@ private:
       // Checks for an epsilon update.
       if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level)
       {
-        add_read();
+        add_read(bet);
       }
       if (is_leaf())
       {
