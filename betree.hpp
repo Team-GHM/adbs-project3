@@ -324,6 +324,7 @@ private:
       return max_pivots;
     }
 
+    // set epsilon, max_messages, and max_pivots for this node
     void set_epsilon(float e, betree &bet)
     {
       auto prev_max_pivots = max_pivots;
@@ -332,12 +333,16 @@ private:
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
 
+      if (max_pivots != prev_max_pivots && node_level == bet.tunable_epsilon_level) {
+	   recursive_set_epsilon(bet, max_pivots, max_messages, epsilon); // update 
+      }
+
       // flag node as ready for adoption if max_pivots increases after epsilon update
       if (max_pivots > prev_max_pivots)
       {
 	if (node_level == bet.tunable_epsilon_level){
 	  
-	  flag_as_ready_for_adoption_recursive(bet);
+	  flag_as_ready_for_adoption_recursive(bet);// flag all nodes below this one
 	}
 	else if (node_level < bet.tunable_epsilon_level) {
           ready_for_adoption = true;
@@ -351,6 +356,7 @@ private:
       node_level--;
     }
 
+    // add single read count to window stat tracker on this node
     void add_read(betree &bet)
     {
       stat_tracker.add_read();
@@ -364,6 +370,7 @@ private:
       }
     }
 
+    // add single write count to window stat tracker on this node
     void add_write(betree &bet)
     {
       stat_tracker.add_write();
@@ -912,6 +919,21 @@ private:
       ready_for_adoption = true;
     }
 
+    // Sets new epsilon, max_pivots, and max_messages on all nodes below and including the one is is originally 
+    // called on
+    void recursive_set_epsilon(betree &bet, uint64_t new_mav_pivots, uint64_t new_max_messages, float eps) {
+	
+	// recurse down
+	for (auto it = pivots.begin(); it != pivots.end(); ++it)
+        {
+	   it->second.child->recursive_set_epsilon(bet, new_mav_pivots, new_max_messages, eps);
+	}
+
+	// update
+	epsilon = eps;
+	max_pivots = new_mav_pivots;
+	max_messages = new_max_messages;
+    }
 
 
     // recursive method to return the height of the tree
@@ -974,22 +996,13 @@ private:
     // flushes or splits as necessary.  If we split, return a
     // map with the new pivot keys pointing to the new nodes.
     // Otherwise return an empty map.
-    pivot_map flush(betree &bet, message_map &elts, float parent_epsilon)
+    pivot_map flush(betree &bet, message_map &elts)
     {
       // If this node is less than the tunable epsilon tree level
       // Checks for an epsilon update.
       if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level)
       {
         add_write(bet);
-      }
-      else if (epsilon != parent_epsilon)
-      {
-        epsilon = parent_epsilon;
-        // Recalculate pivots and message buffer sizes
-        uint64_t new_max_pivots = calculate_max_pivots();
-	max_pivots = new_max_pivots;
-	uint64_t new_max_messages = max_node_size - max_pivots;
-        max_messages = new_max_messages;
       }
 
       // REMEMBER
@@ -1042,9 +1055,9 @@ private:
           assert(elt_start == elt_end);
         }
         // Flush the messages from further down the tree.
-        auto e = epsilon;
-        pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts, e);
-        // If more leaves were created from the flush, update our pivots.
+        pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts);
+	
+	// If more leaves were created from the flush, update our pivots.
         if (!new_children.empty())
         {
           pivots.erase(first_pivot_idx);
@@ -1096,9 +1109,10 @@ private:
           auto elt_child_it = get_element_begin(child_pivot);
           auto elt_next_it = get_element_begin(next_pivot);
           message_map child_elts(elt_child_it, elt_next_it);
-          auto e = epsilon;
-          pivot_map new_children = child_pivot->second.child->flush(bet, child_elts, e);
-          elements.erase(elt_child_it, elt_next_it);
+          
+          pivot_map new_children = child_pivot->second.child->flush(bet, child_elts);
+	  
+	  elements.erase(elt_child_it, elt_next_it);
           if (!new_children.empty())
           {
             // Update the pivots.
@@ -1357,11 +1371,11 @@ public:
   {
     message_map tmp;
     tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
-    auto e = root->epsilon;
-    pivot_map new_nodes = root->flush(*this, tmp, e);
+    pivot_map new_nodes = root->flush(*this, tmp);
+    
     if (new_nodes.size() > 0)
     {
-      e = root->epsilon;
+      auto e = root->epsilon;
 
       // The root's level should always be 0
       root = ss->allocate(new node(e, 0, ops_before_update, window_size));
