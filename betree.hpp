@@ -996,7 +996,6 @@ private:
     // flushes or splits as necessary.  If we split, return a
     // map with the new pivot keys pointing to the new nodes.
     // Otherwise return an empty map.
-    //pivot_map flush(betree &bet, message_map &elts, float parent_epsilon)
     pivot_map flush(betree &bet, message_map &elts)
     {
       // If this node is less than the tunable epsilon tree level
@@ -1376,7 +1375,6 @@ public:
     
     if (new_nodes.size() > 0)
     {
-      //e = root->epsilon;
       auto e = root->epsilon;
 
       // The root's level should always be 0
