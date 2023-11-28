@@ -324,7 +324,7 @@ private:
       return max_pivots;
     }
 
-    void set_epsilon(float e)
+    void set_epsilon(float e, betree &bet)
     {
       auto prev_max_pivots = max_pivots;
 
@@ -335,7 +335,13 @@ private:
       // flag node as ready for adoption if max_pivots increases after epsilon update
       if (max_pivots > prev_max_pivots)
       {
-        ready_for_adoption = true;
+	if (node_level == bet.tunable_epsilon_level){
+	  
+	  flag_as_ready_for_adoption_recursive(bet);
+	}
+	else if (node_level < bet.tunable_epsilon_level) {
+          ready_for_adoption = true;
+        }
       }
     }
 
@@ -345,7 +351,7 @@ private:
       node_level--;
     }
 
-    void add_read()
+    void add_read(betree &bet)
     {
       stat_tracker.add_read();
       operation_count += 1;
@@ -353,12 +359,12 @@ private:
       if (operation_count == ops_before_epsilon_update)
       {
         float new_epsilon = stat_tracker.get_epsilon();
-        set_epsilon(new_epsilon);
+        set_epsilon(new_epsilon, bet);
         operation_count = 0;
       }
     }
 
-    void add_write()
+    void add_write(betree &bet)
     {
       stat_tracker.add_write();
       operation_count += 1;
@@ -366,7 +372,7 @@ private:
       if (operation_count == ops_before_epsilon_update)
       {
         float new_epsilon = stat_tracker.get_epsilon();
-        set_epsilon(new_epsilon);
+        set_epsilon(new_epsilon, bet);
         operation_count = 0;
       }
     }
@@ -540,20 +546,19 @@ private:
     {
       Key key = mkey.key;
 
+      bool applied = false;
       // go through children
       for (auto apply_it = pivots.begin(); apply_it != pivots.end(); ++apply_it)
       {
-
-        // next child
+	// next child
         auto nextIt = next(apply_it);
 
         // if there's more than one child or on last pivot
         if (nextIt != pivots.end())
         {
-
           // last element of child
           auto last_elt = apply_it->second.child->elements.rbegin();
-          auto last_key = last_elt->first.key; // get key
+	  auto last_key = last_elt->first.key; // get key
 
           // first element of next child
           auto first_elt_next = nextIt->second.child->elements.begin();
@@ -562,18 +567,9 @@ private:
           // if key to apply is between the child and next child
           if (key > last_key && key < first_key_next)
           {
-            auto it_size = apply_it->second.child->pivots.size();
-            auto nextIt_size = nextIt->second.child->pivots.size();
-
-            if (nextIt_size > it_size)
-            {
-              nextIt->second.child->apply(mkey, elt, bet.default_value);
-            }
-            else
-            {
-              apply_it->second.child->apply(mkey, elt, bet.default_value);
-            }
-            break;
+	    apply_it->second.child->apply(mkey, elt, bet.default_value);
+            applied = true;   
+	    return;
           }
           else
           {
@@ -584,14 +580,15 @@ private:
             if (key < first_key && apply_it == pivots.begin())
             {
               apply_it->second.child->apply(mkey, elt, bet.default_value);
-              break;
+              applied = true;
+	      return;
             }
           }
         }
         else
         { // last or only pivot
           apply_it->second.child->apply(mkey, elt, bet.default_value);
-          break;
+	  return;
         }
       }
     }
@@ -638,6 +635,7 @@ private:
     // -----------------------------------------------------------------------------------------
     void adopt(betree &bet)
     {
+
       // Nothing to adopt if leaf
       if (is_leaf())
       {
@@ -667,7 +665,6 @@ private:
       // we can adopt grandchildren from them
       for (uint64_t i = 0; i < size_before_adopt; i++)
       {
-
         // iterate till we find the child with node_id == cur_child_ids[0] or reach the end
         auto it = pivots.begin();
         while (true)
@@ -706,8 +703,11 @@ private:
           if (grandchildren.size() > 0)
           {
 
-            // forward child's messages to grandchildren
-            child_to_erase->forward_messages(bet);
+    	    // apply all messages to this node
+	    message_map child_messages = child_to_erase->elements;
+	    for (auto eltit = child_messages.begin(); eltit != child_messages.end(); ++eltit) {
+		apply(eltit->first, eltit->second, bet.default_value);
+	    }
 
             // kill child
             pivots.erase(it);
@@ -901,6 +901,20 @@ private:
       }
     }
 
+    // Recursive method that flags this node and all children, grandchildren, etc as
+    // ready_for_adoption
+    void flag_as_ready_for_adoption_recursive(betree &bet){
+      // Recurse down to bottom of tree
+      for (auto it = pivots.begin(); it != pivots.end(); ++it)
+      {
+        it->second.child->flag_as_ready_for_adoption_recursive(bet);
+      }
+	
+      ready_for_adoption = true;
+    }
+
+
+
     // recursive method to return the height of the tree
     int tree_height_recursive(betree &bet, int currentLevel = 0)
     {
@@ -967,13 +981,16 @@ private:
       // Checks for an epsilon update.
       if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level)
       {
-        add_write();
+        add_write(bet);
       }
       else if (epsilon != parent_epsilon)
       {
         epsilon = parent_epsilon;
         // Recalculate pivots and message buffer sizes
-        max_pivots = calculate_max_pivots();
+        uint64_t new_max_pivots = calculate_max_pivots();
+	max_pivots = new_max_pivots;
+	uint64_t new_max_messages = max_node_size - max_pivots;
+        max_messages = new_max_messages;
       }
 
       // REMEMBER
@@ -1119,7 +1136,7 @@ private:
       // Checks for an epsilon update.
       if (bet.is_dynamic && node_level <= bet.tunable_epsilon_level)
       {
-        add_read();
+        add_read(bet);
       }
       if (is_leaf())
       {
@@ -1183,19 +1200,6 @@ private:
         assert(message_iter->second.opcode == UPDATE);
         v = v + message_iter->second.val;
         message_iter++;
-      }
-
-      // if node is flagged as ready to adopt
-      if (ready_for_adoption)
-      {
-        if (node_level < bet.tunable_epsilon_level)
-        {
-          adopt(bet);
-        }
-        else if (node_level == bet.tunable_epsilon_level)
-        {
-          recursive_adopt(bet);
-        }
       }
 
       return v;
@@ -1383,6 +1387,11 @@ public:
   Value query(Key k)
   {
     Value v = root->query(*this, k);
+
+    // Shorten tree if ready
+    if (is_dynamic && root->ready_for_adoption){
+      root->recursive_adopt(*this);
+    }
 
     return v;
   }
