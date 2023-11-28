@@ -933,8 +933,6 @@ private:
 	epsilon = eps;
 	max_pivots = new_mav_pivots;
 	max_messages = new_max_messages;
-    
-	std::cout << "set new eps, and max pivots/messages ... " << std::endl;
     }
 
 
@@ -1007,15 +1005,6 @@ private:
       {
         add_write(bet);
       }
-      /*else if (epsilon != parent_epsilon)
-      {
-        epsilon = parent_epsilon;
-        // Recalculate pivots and message buffer sizes
-        uint64_t new_max_pivots = calculate_max_pivots();
-	max_pivots = new_max_pivots;
-	uint64_t new_max_messages = max_node_size - max_pivots;
-        max_messages = new_max_messages;
-      }*/
 
       // REMEMBER
       // If too many messages, we need to flush.
@@ -1067,8 +1056,6 @@ private:
           assert(elt_start == elt_end);
         }
         // Flush the messages from further down the tree.
-        //auto e = epsilon;
-        //pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts, e);
         pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts);
 	
 	// If more leaves were created from the flush, update our pivots.
@@ -1124,8 +1111,6 @@ private:
           auto elt_next_it = get_element_begin(next_pivot);
           message_map child_elts(elt_child_it, elt_next_it);
           
-	  //auto e = epsilon;
-          //pivot_map new_children = child_pivot->second.child->flush(bet, child_elts, e);
           pivot_map new_children = child_pivot->second.child->flush(bet, child_elts);
 	  
 	  elements.erase(elt_child_it, elt_next_it);
@@ -1387,8 +1372,6 @@ public:
   {
     message_map tmp;
     tmp[MessageKey<Key>(k, next_timestamp++)] = Message<Value>(opcode, v);
-    //auto e = root->epsilon;
-    //pivot_map new_nodes = root->flush(*this, tmp, e);
     pivot_map new_nodes = root->flush(*this, tmp);
     
     if (new_nodes.size() > 0)
