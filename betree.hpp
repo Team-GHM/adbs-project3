@@ -635,7 +635,6 @@ private:
     // -----------------------------------------------------------------------------------------
     void adopt(betree &bet)
     {
-
       // Nothing to adopt if leaf
       if (is_leaf())
       {
@@ -1202,6 +1201,11 @@ private:
         message_iter++;
       }
 
+      // Node adopts after query if ready to shorten tree
+      if (ready_for_adoption){
+        adopt(bet);
+      }
+
       return v;
     }
 
@@ -1387,11 +1391,6 @@ public:
   Value query(Key k)
   {
     Value v = root->query(*this, k);
-
-    // Shorten tree if ready
-    if (is_dynamic && root->ready_for_adoption){
-      root->recursive_adopt(*this);
-    }
 
     return v;
   }
