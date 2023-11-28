@@ -635,11 +635,9 @@ private:
     // -----------------------------------------------------------------------------------------
     void adopt(betree &bet)
     {
-      std::cout << "in adopt..." << std::endl;
       // Nothing to adopt if leaf
       if (is_leaf())
       {
-	std::cout << "returning cuz is_leaf..." << std::endl;
         ready_for_adoption = false;
         return;
       }
@@ -647,7 +645,6 @@ private:
       // No need to adopt if pivots at max
       if (pivots.size() >= max_pivots)
       {
-	std::cout << "retruning cuz at max_piv.." << std::endl;      
         ready_for_adoption = false;
         return;
       }
@@ -725,7 +722,6 @@ private:
             // adopt sibling grandchildren
             pivots.insert(grandchildren.begin(), grandchildren.end());
 
-	    std::cout << "adopted grandchildren..." << std::endl;
             // remove element at 0 index of cur_child_ids and push everything back
             // to assess the next child that isn't adopted
             cur_child_ids.erase(cur_child_ids.begin());
@@ -1205,9 +1201,9 @@ private:
         message_iter++;
       }
 
+      // Node adopts after query if ready to shorten tree
       if (ready_for_adoption){
         adopt(bet);
-        std::cout << "called adopt() at node_level: " << std::to_string(node_level) << std::endl;
       }
 
       return v;
@@ -1395,11 +1391,6 @@ public:
   Value query(Key k)
   {
     Value v = root->query(*this, k);
-
-    // Shorten tree if ready
-    //if (is_dynamic && root->ready_for_adoption){
-    //  root->recursive_adopt(*this);
-    //}
 
     return v;
   }
