@@ -27,7 +27,7 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
     std::vector<uint64_t> queryKeys; // Store the keys to be queried
 
     // Pre-load the tree with data
-    std::ifstream file("skewed_keys.txt");
+    std::ifstream file("random_keys.txt");
     if (!file) {
         std::cerr << "Error: Could not open the file." << std::endl;
     }
@@ -121,20 +121,21 @@ void benchmark_queries(betree<uint64_t, std::string> &b, uint64_t nops, uint64_t
 #define DEFAULT_TEST_MIN_FLUSH_SIZE (DEFAULT_TEST_MAX_NODE_SIZE / 4)
 #define DEFAULT_TEST_CACHE_SIZE (4)
 #define DEFAULT_TEST_NDISTINCT_KEYS (1ULL << 10)
-#define DEFAULT_TEST_NOPS (1ULL << 14)
+#define DEFAULT_TEST_NOPS (1ULL << 12)
 
 int main(int argc, char **argv)
 {
     char *mode = NULL;
-    uint64_t max_node_size = DEFAULT_TEST_MAX_NODE_SIZE;
-    uint64_t min_flush_size = DEFAULT_TEST_MIN_FLUSH_SIZE;
+    uint64_t max_node_size = 64;
+    uint64_t min_node_size = 64 / 4;
+    uint64_t min_flush_size = 64 / 16;
     uint64_t cache_size = DEFAULT_TEST_CACHE_SIZE;
     char *backing_store_dir = NULL;
-    uint64_t number_of_distinct_keys = DEFAULT_TEST_NDISTINCT_KEYS;
-    uint64_t nops = DEFAULT_TEST_NOPS;
+    uint64_t number_of_distinct_keys = 90000;
+    uint64_t nops = 100000;
     unsigned int random_seed = time(NULL) * getpid();
     float startingepsilon = 0.4; 
-    uint64_t tunableepsilonlevel = 1;
+    uint64_t tunableepsilonlevel = 0;
     uint64_t opsbeforeupdate = 100;
     uint64_t windowsize = 1000;
     bool is_dynamic = true;
@@ -231,8 +232,8 @@ int main(int argc, char **argv)
 
     one_file_per_object_backing_store ofpobs(backing_store_dir);
     swap_space sspace(&ofpobs, cache_size);
-    betree<uint64_t, std::string> b_o(&sspace, max_node_size, min_flush_size);
-    betree<uint64_t, std::string> b_n(&sspace, max_node_size, min_flush_size, is_dynamic, startingepsilon, tunableepsilonlevel, opsbeforeupdate, windowsize);
+    betree<uint64_t, std::string> b_o(&sspace, max_node_size, min_node_size, min_flush_size, false, startingepsilon, 0, 100, 100);
+    betree<uint64_t, std::string> b_n(&sspace, max_node_size, min_node_size, min_flush_size, true, startingepsilon, 1, 100, 100);
     char* outputFileName1 = "read_ops_times_old.txt"; // Name of the output file
     char* outputFileName2 = "read_ops_times_new.txt";
     benchmark_queries(b_o, nops, number_of_distinct_keys, random_seed, outputFileName1);

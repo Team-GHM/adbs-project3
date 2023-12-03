@@ -9,7 +9,7 @@ def generate_keys_and_plot(number_of_distinct_keys, nops, skewness):
     save_keys_to_file(random_keys, 'random_keys.txt')
 
     # Generate skewed keys
-    mean_value = number_of_distinct_keys / 7.0
+    mean_value = number_of_distinct_keys / 2.0
     scale_value = number_of_distinct_keys / 6.0
     skewnorm_dist = skewnorm(loc=mean_value, scale=scale_value, a=skewness)
     skewed_keys = skewnorm_dist.ppf(np.linspace(0, 1, nops))
@@ -36,8 +36,8 @@ def save_keys_to_file(keys, filename):
             file.write(f"{key} {value}\n")
 
 if __name__ == "__main__":
-    number_of_distinct_keys = 2 ** 10  # Set to the desired number of distinct keys
-    nops = 2 ** 14  # Set to the desired number of operations
+    number_of_distinct_keys = 90000  # Set to the desired number of distinct keys
+    nops = 100000  # Set to the desired number of operations
     skewness = 2.0  # Adjust the skewness parameter as needed
 
     generate_keys_and_plot(number_of_distinct_keys, nops, skewness)
