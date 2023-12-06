@@ -34,12 +34,10 @@ ax1.plot(nops_read_new[:split_index], ops_times_read_new[:split_index], color='r
 ax1.plot(nops_read_new[split_index:], ops_times_read_new[split_index:], color='purple', label='Adaptable Writes')
 ax1.plot(nops_read_old[:split_index], ops_times_read_old[:split_index], color='blue', label='NonAdaptable Reads') 
 ax1.plot(nops_read_old[split_index:], ops_times_read_old[split_index:], color='cyan', label='NonAdaptable Writes')
-
 ax1.legend()
 ax1.set_xlabel('Operation(hundreds)', fontsize=18)
 ax1.set_ylabel('Average time (μs)', fontsize=18)
 ax1.set_title('Read Heavy Operations (70% Reads and 30% Writes)',fontsize=16)
-#ax1.set_title('Read Heavy Operations',fontsize=16)
 
 # Plot for Writes
 ax2.plot(nops_write_new[:split_index], ops_times_write_new[:split_index], color='green', label='Adaptable Writes')

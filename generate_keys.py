@@ -36,7 +36,7 @@ def save_keys_to_file(keys, filename):
             file.write(f"{key} {value}\n")
 
 if __name__ == "__main__":
-    number_of_distinct_keys = 90000  # Set to the desired number of distinct keys
+    number_of_distinct_keys = 100000  # Set to the desired number of distinct keys
     nops = 100000  # Set to the desired number of operations
     skewness = 2.0  # Adjust the skewness parameter as needed
 
