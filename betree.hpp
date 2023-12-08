@@ -631,21 +631,6 @@ private:
     }
     // --------------------------------------------------------------- //
 
-    // Adopt() recursively from the bottom to the top.
-    void recursive_adopt(betree &bet)
-    {
-      // Recurse down to bottom of tree
-      for (auto it = pivots.begin(); it != pivots.end(); ++it)
-      {
-        it->second.child->recursive_adopt(bet);
-      }
-
-      // adopt after children have adopted (if flagged as ready)
-      if (ready_for_adoption)
-      {
-        adopt(bet);
-      }
-    }
 
     // Requires: there are less than MIN_FLUSH_SIZE things in elements
     //           destined for each child in pivots);
