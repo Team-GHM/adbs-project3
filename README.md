@@ -1,6 +1,6 @@
 # Adaptive BeTree - Advanced Databases Fall 2023 - Group 2 (Marcus Adair, Harnoor Bagga, Gabriel Kerr)
 
-
+Implementatation of Adaptive B Epsilon Tree in C++ where Epsilon changes on a per-node basis based on the recent workload distribution.
 
 
 ## BUILDING THE TEST PROGRAM
@@ -9,7 +9,7 @@
 You can compile the tests using the provided Makefile: `make clean`.
 
 
-## RUNNING THE ORIGINAL TEST PROGRAM
+## RUNNING THE ORIGINAL STARTED CODE TEST PROGRAM
 
 Included with the project is a text file that will run 10,000 inserts and queries followed by 400 queries (and their correct results) for the final tree. The file is named `test_inputs.txt`. To use this file to test your tree, use a command like so:
 
@@ -48,3 +48,5 @@ For a write-heavy workload:
 ```
 ./testing_writes -m benchmark-upserts -d tmpdir
 ```
+
+Make sure that tmpdir is cleared before running tests.
