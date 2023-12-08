@@ -41,8 +41,10 @@ python3 generate_keys.py
 Utilize the generated key file for benchmark execution with the following commands:
 
 For a read-heavy workload: 
-```./testing_reads -m benchmark-queries -d tmpdir
+```
+./testing_reads -m benchmark-queries -d tmpdir
 ```
 For a write-heavy workload:
-```./testing_writes -m benchmark-upserts -d tmpdir
+```
+./testing_writes -m benchmark-upserts -d tmpdir
 ```
