@@ -11,9 +11,13 @@ endif
 
 CC=g++
 
-all: test test_logging_restore generate
+all: test test_logging_restore generate testing_reads testing_writes
 
 test: test.cpp betree.hpp swap_space.o backing_store.o window_stat_tracker.hpp
+
+testing_reads: testing_reads.cpp betree.hpp swap_space.o backing_store.o
+
+testing_writes: testing_writes.cpp betree.hpp swap_space.o backing_store.o
 
 test_logging_restore: test_logging_restore.cpp betree.hpp swap_space.o backing_store.o
 
@@ -26,4 +30,4 @@ backing_store.o: backing_store.hpp backing_store.cpp
 window_stat_tracker.o: window_stat_tracker.hpp
 
 clean:
-	$(RM) *.o test test_logging_restore generate
+	$(RM) *.o test test_logging_restore generate testing_reads testing_writes

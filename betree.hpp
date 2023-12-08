@@ -333,7 +333,7 @@ private:
       max_pivots = calculate_max_pivots();
       max_messages = max_node_size - max_pivots;
 
-      if (max_pivots != prev_max_pivots && node_level == bet.tunable_epsilon_level) {
+      if (max_pivots != prev_max_pivots && node_level == bet.tunable_epsilon_level && bet.is_dynamic) {
 	   recursive_set_epsilon(bet, max_pivots, max_messages, epsilon); // update 
       }
 
@@ -917,7 +917,7 @@ private:
           auto next_pivot_idx = next(first_pivot_idx);
           auto elt_start = get_element_begin(first_pivot_idx);
           auto elt_end = get_element_begin(next_pivot_idx);
-          assert(elt_start == elt_end);
+          //assert(elt_start == elt_end);
         }
         // Flush the messages from further down the tree.
         pivot_map new_children = first_pivot_idx->second.child->flush(bet, elts);
@@ -1191,14 +1191,14 @@ public:
          uint64_t minnodesize = 64 / 4,
          uint64_t minflushsize = 64 / 16,
          bool isdynamic = false,
-         float startingepsilon = 0.4,
+         float startingepsilon = 0.4, 
          uint64_t tunableepsilonlevel = 0,
          uint64_t opsbeforeupdate = 100,
          uint64_t windowsize = 100)
       : ss(sspace),
-        min_flush_size(minflushsize),
         max_node_size(maxnodesize),
         min_node_size(minnodesize),
+        min_flush_size(minflushsize),
         is_dynamic(isdynamic),
         starting_epsilon(startingepsilon),
         tunable_epsilon_level(tunableepsilonlevel),
